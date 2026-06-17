@@ -1,0 +1,2011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Annotate with Model — Modern Annotation Tool</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base: #0f1015;    
+      --bg-surface: rgba(91, 71, 110, 0.65);
+      --bg-elevated: rgba(30, 32, 44, 0.9);
+      --bg-hover: rgba(243, 242, 242, 0.06);
+      --bg-active: rgba(255, 255, 255, 0.1);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-mid: rgba(255, 255, 255, 0.15);
+      --border-accent: rgba(99, 102, 241, 0.5);
+      --text-primary: #f8fafc;
+      --text-secondary: #f2f5f8;
+      --text-muted: #858e9b;
+      --accent: #818cf8;
+      --accent-dim: rgba(129, 140, 248, 0.15);
+      --accent-glow: rgba(129, 140, 248, 0.4);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.15);
+      --red: #fb7185;
+      --red-dim: rgba(251, 113, 133, 0.15);
+      --amber: #fbbf24;
+      --purple: #c084fc;
+      --purple-dim: rgba(192, 132, 252, 0.15);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+      --font-ui: 'DM Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-hand: 'Dancing Script', cursive;
+      --sidebar-w: 72px;
+      --panel-w: 288px;
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      background: linear-gradient(135deg, #0f1015 0%, #161824 50%, #0c0d12 100%);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      height: 52px;
+      position: relative;
+      background: var(--bg-surface);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .hdr-left { display: flex; align-items: center; gap: 4px; }
+    .hdr-center {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 26px; font-weight: 600; letter-spacing: 0.02em;
+      font-family: var(--font-hand);
+      transform: translateY(-3px); /* Pushes the logo slightly upper */
+    }
+    .hdr-logo-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+    .hdr-right {
+      display: flex; align-items: center; gap: 10px; justify-content: flex-end;
+    }
+
+    .menu-btn {
+      background: none; border: none; color: var(--text-secondary);
+      font-family: var(--font-ui); font-size: 12px; cursor: pointer;
+      padding: 4px 8px; border-radius: var(--radius-sm);
+      transition: color 0.15s, background 0.15s;
+      position: relative;
+    }
+    .menu-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+    .dropdown {
+      display: none; position: absolute; top: calc(100% + 6px); left: 0;
+      min-width: 160px; background: var(--bg-elevated);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-mid); border-radius: var(--radius-md);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.5); z-index: 100; padding: 6px;
+    }
+    .dropdown label, .dropdown .dd-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; border-radius: var(--radius-sm);
+      font-size: 12px; color: var(--text-secondary); cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+    }
+    .dropdown label:hover, .dropdown .dd-item:hover {
+      background: var(--bg-hover); color: var(--text-primary);
+    }
+    .dropdown input[type="checkbox"] {
+      width: 13px; height: 13px; accent-color: var(--accent);
+    }
+    .dd-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+    .badge {
+      background: var(--bg-active); border: 1px solid var(--border-mid);
+      color: var(--text-secondary); font-family: var(--font-mono);
+      font-size: 11px; padding: 3px 8px; border-radius: var(--radius-sm);
+    }
+    .version-tag { font-size: 11px; color: var(--text-muted); }
+
+    /* ── LAYOUT ── */
+    .app-body { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── LEFT SIDEBAR ── */
+    aside.sidebar {
+      width: var(--sidebar-w);
+      background: var(--bg-surface);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 12px 0; gap: 4px; overflow-y: auto; flex-shrink: 0;
+    }
+
+    .sb-btn {
+      width: 52px; min-height: 52px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 6px; border-radius: var(--radius-md); border: none;
+      background: transparent; color: var(--text-muted); cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: var(--font-ui); font-size: 10px; font-weight: 500;
+      padding: 6px 4px; text-align: center;
+    }
+    .sb-btn:hover { 
+      background: var(--bg-hover); color: var(--text-primary); 
+      transform: translateY(-2px);
+    }
+    .sb-btn i { font-size: 16px; }
+    .sb-btn.active-draw { background: var(--accent-dim); color: var(--accent); outline: 1px solid var(--border-accent); }
+    .sb-btn.verified-active { background: var(--green-dim); color: var(--green); }
+    .sb-btn.danger:hover { color: var(--red); background: var(--red-dim); }
+
+    .sb-divider { width: 32px; height: 1px; background: var(--border); margin: 6px 0; flex-shrink: 0; }
+
+    .zoom-block {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+    .zoom-mini-btn {
+      width: 28px; height: 26px; border-radius: var(--radius-sm);
+      background: none; border: 1px solid var(--border);
+      color: var(--text-muted); cursor: pointer; font-size: 11px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .zoom-mini-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-mid); }
+    .zoom-val { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+
+    /* Format select inside sidebar */
+    .fmt-wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 6px 4px;
+    }
+    .fmt-label { font-size: 9px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    #formatSelect {
+      width: 56px; background: var(--bg-active); border: 1px solid var(--border-mid);
+      color: var(--accent); font-family: var(--font-mono); font-size: 9px;
+      border-radius: var(--radius-sm); padding: 3px 2px; text-align: center; cursor: pointer;
+    }
+
+    /* Download items */
+    .dl-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: var(--radius-sm);
+      font-size: 12px; color: var(--text-secondary); cursor: pointer;
+      background: none; border: none; width: 100%; text-align: left;
+      font-family: var(--font-ui); transition: all 0.12s;
+    }
+    .dl-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .dl-item i { color: var(--green); width: 14px; }
+
+    /* ── WORKSPACE ── */
+    main#workspace {
+      flex: 1; background: transparent; position: relative;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+
+    #emptyState {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; color: var(--text-muted);
+      border: 1px dashed var(--border-mid);
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: var(--radius-lg);
+      width: calc(100% - 48px); height: calc(100% - 48px);
+      pointer-events: none;
+    }
+    .empty-icon {
+      width: 64px; height: 64px; border-radius: var(--radius-lg);
+      background: var(--bg-active); border: 1px solid var(--border);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      display: flex; align-items: center; justify-content: center; font-size: 24px;
+      color: var(--text-secondary);
+    }
+    #emptyState h2 { font-size: 16px; font-weight: 500; color: var(--text-primary); letter-spacing: 0.02em; }
+    #emptyState p { font-size: 13px; color: var(--text-muted); }
+
+    #imageStage {
+      width: 100%; height: 100%;
+      overflow: auto; position: relative;
+      display: flex;
+    }
+    #scrollWrapper { position: relative; margin: auto; }
+    #imageWrap { position: absolute; left: 0; top: 0; transform-origin: top left; }
+    #activeImage { display: block; max-width: none; user-select: none; }
+    #boxLayer { position: absolute; inset: 0; }
+
+    /* image info bar */
+    #imageInfo {
+      position: absolute; left: 12px; top: 12px;
+      background: rgba(13,15,18,0.88); border: 1px solid var(--border-mid);
+      color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px;
+      padding: 4px 10px; border-radius: var(--radius-sm);
+      pointer-events: none; backdrop-filter: blur(4px);
+    }
+
+    /* debug */
+    #debugPanel {
+      position: absolute; right: calc(var(--panel-w) + 16px); top: 12px;
+      background: rgba(13,15,18,0.88); border: 1px solid var(--border);
+      color: var(--text-muted); font-family: var(--font-mono); font-size: 10px;
+      padding: 4px 10px; border-radius: var(--radius-sm); max-width: 240px;
+      pointer-events: none; backdrop-filter: blur(4px);
+    }
+
+    /* zoom indicator */
+    #zoomIndicator {
+      display: none; position: fixed; pointer-events: none; z-index: 50;
+      background: rgba(13,15,18,0.95); color: var(--accent);
+      border: 1px solid var(--border-accent); padding: 4px 10px;
+      border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 11px;
+    }
+
+    /* toast */
+    #toast {
+      display: none; position: absolute; bottom: 16px; left: 50%;
+      transform: translateX(-50%); z-index: 200;
+      background: var(--bg-elevated); border: 1px solid var(--border-mid);
+      color: var(--text-primary); font-size: 12px; padding: 7px 16px;
+      border-radius: var(--radius-md); box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      white-space: nowrap;
+    }
+
+    /* AI Popup */
+    @keyframes popupSlideUp {
+      from { opacity: 0; transform: translate(-50%, 20px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+    #aiPopup {
+      position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+      background: rgba(30, 32, 44, 0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--purple); border-radius: var(--radius-lg);
+      padding: 8px 12px; gap: 12px; z-index: 100; align-items: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5); width: 400px; max-width: 90%;
+      animation: popupSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    #aiInput {
+      flex: 1; background: transparent; border: none; color: var(--text-primary);
+      font-family: var(--font-ui); font-size: 13px; outline: none;
+    }
+    #aiInput::placeholder { color: var(--text-muted); }
+    .ai-send-btn {
+      background: var(--purple); color: #fff; border: none; border-radius: 50%;
+      width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.15s; font-size: 12px; flex-shrink: 0;
+    }
+    .ai-send-btn:hover { background: var(--accent); transform: scale(1.05); }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel {
+      width: var(--panel-w); background: var(--bg-surface);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;
+    }
+
+    .panel-section {
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .panel-section.scrollable { overflow-y: auto; flex: 1; min-height: 80px; }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px 8px;
+    }
+    .section-title {
+      font-size: 10px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .section-action {
+      font-size: 10px; font-weight: 600; color: var(--text-muted);
+      background: none; border: none; cursor: pointer; font-family: var(--font-ui);
+      padding: 2px 6px; border-radius: 4px; transition: all 0.12s;
+    }
+    .section-action:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .panel-body { padding: 0 14px 12px; }
+
+    /* row: label + field */
+    .field-row { margin-bottom: 10px; }
+    .field-label {
+      font-size: 10px; font-weight: 500; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; display: block;
+    }
+    .field-ctrl {
+      width: 100%; background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--text-primary); font-family: var(--font-ui); font-size: 12px;
+      padding: 8px 10px; outline: none; transition: border-color 0.15s, background 0.15s;
+    }
+    .field-ctrl:focus { border-color: var(--accent); background: rgba(0,0,0,0.4); box-shadow: 0 0 0 2px var(--accent-dim); }
+    .field-ctrl:hover { border-color: var(--border-mid); }
+    select.field-ctrl { cursor: pointer; }
+
+    .check-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0; font-size: 12px; color: var(--text-secondary); cursor: pointer;
+    }
+    .check-row input[type="checkbox"] {
+      width: 13px; height: 13px; accent-color: var(--accent); cursor: pointer;
+    }
+
+    /* box list */
+    .box-list-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 8px; border-radius: var(--radius-sm);
+      cursor: pointer; transition: background 0.12s;
+    }
+    .box-list-item:hover { background: var(--bg-hover); }
+    .box-list-item.selected { background: rgba(246,173,85,0.1); outline: 1px solid rgba(246,173,85,0.3); }
+    .box-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .box-label { flex: 1; font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .vis-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-muted); font-size: 11px; padding: 2px 4px;
+      border-radius: 3px; transition: all 0.12s; flex-shrink: 0;
+    }
+    .vis-btn:hover { background: var(--bg-active); color: var(--text-primary); }
+
+    /* classes */
+    .class-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 8px; border-radius: var(--radius-sm); cursor: pointer;
+      transition: background 0.12s;
+    }
+    .class-item:hover { background: var(--bg-hover); }
+    .class-item input[type="checkbox"] { width: 12px; height: 12px; accent-color: var(--accent); cursor: pointer; }
+    .class-item .box-dot { width: 7px; height: 7px; }
+    .class-name { flex: 1; font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .class-count { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+
+    .empty-msg { font-size: 11px; color: var(--text-muted); padding: 8px 14px; }
+
+    /* ── HELP MODAL ── */
+    #helpModal {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.65); align-items: center; justify-content: center;
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    }
+    #helpModal.open { display: flex; }
+    .modal-box {
+      background: var(--bg-elevated); border: 1px solid var(--border-mid);
+      border-radius: var(--radius-lg); width: 420px; max-height: 80vh;
+      overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    }
+    .modal-header {
+      padding: 16px 20px 12px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; background: var(--bg-elevated);
+    }
+    .modal-header h2 { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    .modal-close {
+      background: none; border: none; color: var(--text-muted); cursor: pointer;
+      font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px;
+      transition: all 0.12s;
+    }
+    .modal-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .modal-body { padding: 16px 20px; }
+    .shortcut-group { margin-bottom: 16px; }
+    .shortcut-group h3 { font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .shortcut-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+    .shortcut-row span { font-size: 12px; color: var(--text-secondary); }
+    .key {
+      background: var(--bg-active); border: 1px solid var(--border-mid);
+      color: var(--text-primary); font-family: var(--font-mono); font-size: 11px;
+      padding: 2px 7px; border-radius: 4px;
+    }
+
+    /* box rendering */
+    #boxLayer button {
+      cursor: default;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+    /* hidden inputs */
+    #imageDirInput, #xmlDirInput { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="hdr-left">
+      <div class="menu-btn" style="position:relative">
+        <button id="fileMenuBtn" class="menu-btn" type="button">File</button>
+        <div id="fileMenu" class="dropdown"></div>
+      </div>
+      <div style="position:relative">
+        <button id="editMenuBtn" class="menu-btn" type="button">Edit</button>
+        <div id="editMenu" class="dropdown">
+          <div class="dd-item" id="drawPolygonBtn"><i class="fa-solid fa-draw-polygon"></i> Draw Polygon</div>
+        </div>
+      </div>
+      <div style="position:relative">
+        <button id="viewMenuBtn" class="menu-btn" type="button">View</button>
+        <div id="viewMenu" class="dropdown">
+          <label><input id="autoSaveCheckbox" type="checkbox" checked> Auto save</label>
+          <label><input id="showLabelsCheckbox" type="checkbox" checked> Show labels</label>
+          <div class="dd-sep"></div>
+          <div class="dd-item" id="restoreDataBtn" style="padding:10px;"><i class="fa-solid fa-clock-rotate-left"></i> Loading backup info...</div>
+        </div>
+      </div>
+      <button id="helpBtn" class="menu-btn" type="button">Help</button>
+      <button id="aiBtn" class="menu-btn" type="button" style="color: var(--purple);"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</button>
+      <button id="modelBtn" class="menu-btn" type="button"><i class="fa-solid fa-brain"></i> Load Model</button>
+    </div>
+    <div class="hdr-center">
+      <div class="hdr-logo-dot"></div>
+      <div>
+        <span style="color:var(--accent); font-weight:400">Annotate</span><span style="color: white; font-weight:400"> w..Model</span> 
+      </div>   
+    </div>
+    <div class="hdr-right">
+      <span id="imageCountBadge" class="badge">0 / 0</span>
+      <span class= "version-tag">Made By Gourab Bapli </span>
+      <span class="version-tag">v0.1.1</span>
+    </div>
+  </header>
+
+  <div class="app-body">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+
+      <button id="imageFolderBtn" class="sb-btn" title="Load image folder">
+        <i class="fa-solid fa-folder-open"></i>
+        <span>Images</span>
+      </button>
+      <button id="xmlFolderBtn" class="sb-btn" title="Set XML output folder">
+        <i class="fa-solid fa-file-code"></i>
+        <span>XML Dir</span>
+      </button>
+      <button id="saveBtn" class="sb-btn" title="Save all annotations">
+        <i class="fa-solid fa-floppy-disk"></i>
+        <span>Save</span>
+      </button>
+
+      <div class="sb-divider"></div>
+
+      <button id="prevBtn" class="sb-btn" title="Previous image (A)">
+        <i class="fa-solid fa-chevron-left"></i>
+        <span>Prev</span>
+      </button>
+      <button id="nextBtn" class="sb-btn" title="Next image (D)">
+        <i class="fa-solid fa-chevron-right"></i>
+        <span>Next</span>
+      </button>
+      <button id="verifyBtn" class="sb-btn" title="Mark as verified (Space)">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>Verify</span>
+      </button>
+
+      <div class="sb-divider"></div>
+
+      <button id="createBoxBtn" class="sb-btn" title="Draw bounding box (S)">
+        <i class="fa-solid fa-vector-square"></i>
+        <span>Draw</span>
+      </button>
+      <button id="drawPolygonSbBtn" class="sb-btn" title="Draw polygon (P)">
+        <i class="fa-solid fa-draw-polygon"></i>
+        <span>Polygon</span>
+      </button>
+      <button id="deleteBtn" class="sb-btn danger" title="Delete selected box (Z)">
+        <i class="fa-solid fa-trash-can"></i>
+        <span>Delete</span>
+      </button>
+
+      <div class="sb-divider"></div>
+
+      <div class="fmt-wrap">
+        <span class="fmt-label">Format</span>
+        <select id="formatSelect"><option value="pascal-voc">VOC</option></select>
+      </div>
+
+      <div class="sb-divider"></div>
+
+      <div class="zoom-block">
+        <button id="zoomInBtn" class="zoom-mini-btn" title="Zoom in"><i class="fa-solid fa-plus"></i></button>
+        <span id="zoomLabel" class="zoom-val">100%</span>
+        <button id="zoomOutBtn" class="zoom-mini-btn" title="Zoom out"><i class="fa-solid fa-minus"></i></button>
+        <button id="fitBtn" class="zoom-mini-btn" title="Fit to view" style="margin-top:2px"><i class="fa-solid fa-expand"></i></button>
+      </div>
+
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <main id="workspace">
+      <div id="emptyState">
+        <div class="empty-icon"><i class="fa-regular fa-image"></i></div>
+        <h2>No image loaded</h2>
+        <p>Click Images in the sidebar or drag &amp; drop a folder</p>
+      </div>
+      <div id="imageStage" style="display:none;">
+        <div id="scrollWrapper">
+          <div id="imageWrap">
+            <img id="activeImage" style="display:block; max-width:none; user-select:none;" alt="Annotation target">
+            <div id="boxLayer" style="position:absolute; inset:0;"></div>
+          </div>
+        </div>
+      </div>
+      <div id="imageInfo"></div>
+      <div id="debugPanel">Ready. Load images to begin.</div>
+      <div id="zoomIndicator"></div>
+      <div id="toast"></div>
+      <div id="aiPopup" style="display:none;">
+        <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--purple);"></i>
+        <input id="aiInput" type="text" placeholder="Instruct AI to annotate...">
+        <button id="aiSendBtn" class="ai-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+      </div>
+    </main>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+
+      <!-- Export -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-title">Export</span>
+        </div>
+        <div class="panel-body" style="display: flex; flex-direction: column; gap: 2px;">
+          <button id="downloadAllBtn" class="dl-item"><i class="fa-solid fa-list"></i> All annotations</button>
+          <button id="downloadVerifiedBtn" class="dl-item"><i class="fa-solid fa-check-double"></i> Verified only</button>
+          <button id="downloadAndVerifyBtn" class="dl-item"><i class="fa-solid fa-check-to-slot"></i> Verify & annotations</button>
+        </div>
+      </div>
+
+      <!-- Label Settings -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-title">Label</span>
+        </div>
+        <div class="panel-body">
+          <label class="check-row">
+            <input id="defaultLabelCheckbox" type="checkbox">
+            Use default label
+          </label>
+          <div class="field-row">
+            <span class="field-label">Preset</span>
+            <select id="labelSelect" class="field-ctrl">
+              <option value="Fight">Fight</option>
+            </select>
+          </div>
+          <div class="field-row" style="margin-bottom:4px">
+            <span class="field-label">Custom</span>
+            <input id="labelInput" class="field-ctrl" type="text" value="Fight" placeholder="Enter label…">
+          </div>
+        </div>
+      </div>
+
+      <!-- Selected Box -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-title">Selected Box</span>
+        </div>
+        <div class="panel-body" style="padding-bottom:10px;">
+          <select id="selectedBoxLabelSelect" class="field-ctrl">
+            <option value="Fight">Fight</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Classes -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-title">Classes</span>
+          <button id="classesClearBtn" class="section-action">Show all</button>
+        </div>
+        <div id="classesContainer" class="panel-body" style="padding-top:4px;"></div>
+      </div>
+
+      <!-- Bounding Boxes -->
+      <div class="panel-section scrollable">
+        <div class="section-header">
+          <span class="section-title">Boxes</span>
+        </div>
+        <div id="boxListContainer"></div>
+      </div>
+
+    </div>
+
+  </div><!-- app-body -->
+
+  <!-- hidden file inputs -->
+  <input id="imageDirInput" type="file" multiple webkitdirectory directory mozdirectory>
+  <input id="xmlDirInput" type="file" multiple webkitdirectory directory mozdirectory>
+
+  <!-- LABEL MODAL -->
+  <div id="labelModal" style="display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.65); align-items: center; justify-content: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+    <div class="modal-box" style="width: 320px;">
+      <div class="modal-header">
+        <h2>Enter Label</h2>
+        <button id="closeLabelModalBtn" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-row">
+          <span class="field-label">Label Name</span>
+          <input id="newBoxLabelInput" class="field-ctrl" type="text" placeholder="Enter or select label..." list="labelDataList">
+          <datalist id="labelDataList"></datalist>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
+          <button id="cancelLabelBtn" style="padding:6px 12px; background:var(--bg-hover); color:var(--text-primary); border:none; border-radius:4px; cursor:pointer; font-family:var(--font-ui);">Cancel</button>
+          <button id="confirmLabelBtn" style="padding:6px 12px; background:var(--accent); color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-family:var(--font-ui);">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HELP MODAL -->
+  <div id="helpModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>Keyboard shortcuts</h2>
+        <button id="closeHelpBtn" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="shortcut-group">
+          <h3>Navigation</h3>
+          <div class="shortcut-row"><span>Next image</span><span class="key">D</span></div>
+          <div class="shortcut-row"><span>Previous image</span><span class="key">A</span></div>
+        </div>
+        <div class="shortcut-group">
+          <h3>Annotation</h3>
+          <div class="shortcut-row"><span>Draw bounding box</span><span class="key">S</span></div>
+          <div class="shortcut-row"><span>Draw polygon</span><span class="key">P</span></div>
+          <div class="shortcut-row"><span>Edit/move and resize bounding box</span><span class="key">W</span></div>
+          <div class="shortcut-row"><span>Auto-detect objects (AI)</span><span class="key">G</span></div>
+          <div class="shortcut-row"><span>Edit selected box label</span><span class="key">E</span></div>
+          <div class="shortcut-row"><span>Delete bounding box</span><span class="key">Z</span></div>
+        </div>
+        <div class="shortcut-group">
+          <h3>Verification &amp; undo</h3>
+          <div class="shortcut-row"><span>Mark/unmark image as verified</span><span class="key">Space</span></div>
+          <div class="shortcut-row"><span>Undo last action</span><span class="key">Ctrl Z</span></div>
+        </div>
+        <div class="shortcut-group">
+          <h3>Zoom</h3>
+          <div class="shortcut-row"><span>Zoom in</span><span class="key">Scroll ↑</span></div>
+          <div class="shortcut-row"><span>Zoom out</span><span class="key">Scroll ↓</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- LOAD MODEL MODAL -->
+  <div id="modelModal" style="display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.65); align-items: center; justify-content: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+    <div class="modal-box" style="width: 400px;">
+      <div class="modal-header">
+        <h2>Load AI Model</h2>
+        <button id="closeModelModalBtn" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">Select and load an AI model for auto-annotation.</p>
+        <div class="field-row">
+          <span class="field-label">Model File</span>
+          <input type="file" id="modelFileInput" class="field-ctrl" accept=".pt,.onnx,.h5,.bin,.tflite">
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
+          <button id="cancelModelBtn" style="padding:6px 12px; background:var(--bg-hover); color:var(--text-primary); border:none; border-radius:4px; cursor:pointer; font-family:var(--font-ui);">Cancel</button>
+          <button id="loadModelConfirmBtn" style="padding:6px 12px; background:var(--accent); color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-family:var(--font-ui);">Load Model</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTO-DETECT ALL MODAL -->
+  <div id="autoDetectAllModal" style="display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.65); align-items: center; justify-content: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+    <div class="modal-box" style="width: 400px;">
+      <div class="modal-header">
+        <h2>Run AI on All Images?</h2>
+        <button id="closeAutoDetectAllModalBtn" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+          You've loaded <span id="autoDetectImageCount"></span> images. Would you like to run the AI model to auto-detect objects on all of them?
+        </p>
+        <p id="autoDetectProgress" style="display: none; color: var(--text-secondary); font-size: 12px; margin-bottom: 16px;"></p>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
+          <button id="skipAutoDetectAllBtn" style="padding:6px 12px; background:var(--bg-hover); color:var(--text-primary); border:none; border-radius:4px; cursor:pointer; font-family:var(--font-ui);">Skip</button>
+          <button id="runAutoDetectAllBtn" style="padding:6px 12px; background:var(--accent); color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-family:var(--font-ui);">Run on All</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      images: [], currentIndex: 0, boxes: {}, boxVisibility: {},
+      verifiedImages: {}, isDrawing: false, drawMode: false,
+      polygonMode: false, isDrawingPolygon: false, currentPolygon: [], draftPolygonLayer: null,
+      editMode: false, isEditing: false, editingResize: false,
+      editingResizeHandle: null, selectedBox: null,
+      startX: 0, startY: 0, editStartX: 0, editStartY: 0,
+      editOriginalBox: null, zoom: 1, autoFitImage: true, draftBox: null,
+      annotationsByName: {}, verifiedByName: {},
+      labels: ['Fight'], currentLabel: 'Fight',
+      useDefaultLabel: false, annotationFormat: 'pascal-voc',
+      autoSave: true, autoSaveCache: {}, showLabels: true,
+      xmlFolderHandle: null, xmlFolderPath: null,
+      undoStack: [], maxUndoStack: 20, labelColors: {},
+      modelLoaded: null
+    };
+
+    try {
+      const savedLabels = JSON.parse(localStorage.getItem('modern_annotation_labels'));
+      if (Array.isArray(savedLabels) && savedLabels.length > 0) {
+        state.labels = savedLabels; state.currentLabel = savedLabels[0];
+      }
+      const savedAutoSave = JSON.parse(localStorage.getItem('modern_annotation_auto_save'));
+      if (savedAutoSave) state.autoSaveCache = savedAutoSave;
+    } catch(e) {}
+
+    const els = {
+      fileMenuBtn: document.getElementById('fileMenuBtn'),
+      fileMenu: document.getElementById('fileMenu'),
+      editMenuBtn: document.getElementById('editMenuBtn'),
+      editMenu: document.getElementById('editMenu'),
+      drawPolygonBtn: document.getElementById('drawPolygonBtn'),
+      viewMenuBtn: document.getElementById('viewMenuBtn'),
+      viewMenu: document.getElementById('viewMenu'),
+      helpBtn: document.getElementById('helpBtn'),
+      aiBtn: document.getElementById('aiBtn'),
+      helpModal: document.getElementById('helpModal'),
+      closeHelpBtn: document.getElementById('closeHelpBtn'),
+      autoSaveCheckbox: document.getElementById('autoSaveCheckbox'),
+      showLabelsCheckbox: document.getElementById('showLabelsCheckbox'),
+      imageCountBadge: document.getElementById('imageCountBadge'),
+      imageFolderBtn: document.getElementById('imageFolderBtn'),
+      xmlFolderBtn: document.getElementById('xmlFolderBtn'),
+      saveBtn: document.getElementById('saveBtn'),
+      downloadAllBtn: document.getElementById('downloadAllBtn'),
+      downloadVerifiedBtn: document.getElementById('downloadVerifiedBtn'),
+      downloadAndVerifyBtn: document.getElementById('downloadAndVerifyBtn'),
+      nextBtn: document.getElementById('nextBtn'),
+      prevBtn: document.getElementById('prevBtn'),
+      verifyBtn: document.getElementById('verifyBtn'),
+      createBoxBtn: document.getElementById('createBoxBtn'),
+      drawPolygonSbBtn: document.getElementById('drawPolygonSbBtn'),
+      deleteBtn: document.getElementById('deleteBtn'),
+      zoomInBtn: document.getElementById('zoomInBtn'),
+      zoomOutBtn: document.getElementById('zoomOutBtn'),
+      fitBtn: document.getElementById('fitBtn'),
+      zoomLabel: document.getElementById('zoomLabel'),
+      zoomIndicator: document.getElementById('zoomIndicator'),
+      imageDirInput: document.getElementById('imageDirInput'),
+      xmlDirInput: document.getElementById('xmlDirInput'),
+      formatSelect: document.getElementById('formatSelect'),
+      defaultLabelCheckbox: document.getElementById('defaultLabelCheckbox'),
+      labelSelect: document.getElementById('labelSelect'),
+      labelInput: document.getElementById('labelInput'),
+      selectedBoxLabelSelect: document.getElementById('selectedBoxLabelSelect'),
+      boxListContainer: document.getElementById('boxListContainer'),
+      classesContainer: document.getElementById('classesContainer'),
+      classesClearBtn: document.getElementById('classesClearBtn'),
+      workspace: document.getElementById('workspace'),
+      emptyState: document.getElementById('emptyState'),
+      imageStage: document.getElementById('imageStage'),
+      scrollWrapper: document.getElementById('scrollWrapper'),
+      imageWrap: document.getElementById('imageWrap'),
+      activeImage: document.getElementById('activeImage'),
+      boxLayer: document.getElementById('boxLayer'),
+      imageInfo: document.getElementById('imageInfo'),
+      debugPanel: document.getElementById('debugPanel'),
+      toast: document.getElementById('toast'),
+      aiPopup: document.getElementById('aiPopup'),
+      aiInput: document.getElementById('aiInput'),
+      aiSendBtn: document.getElementById('aiSendBtn'),
+      modelBtn: document.getElementById('modelBtn'),
+      modelModal: document.getElementById('modelModal'),
+      closeModelModalBtn: document.getElementById('closeModelModalBtn'),
+      cancelModelBtn: document.getElementById('cancelModelBtn'),
+      loadModelConfirmBtn: document.getElementById('loadModelConfirmBtn'),
+      labelModal: document.getElementById('labelModal'),
+      autoDetectAllModal: document.getElementById('autoDetectAllModal'),
+      closeAutoDetectAllModalBtn: document.getElementById('closeAutoDetectAllModalBtn'),
+      autoDetectImageCount: document.getElementById('autoDetectImageCount'),
+      autoDetectProgress: document.getElementById('autoDetectProgress'),
+      skipAutoDetectAllBtn: document.getElementById('skipAutoDetectAllBtn'),
+      runAutoDetectAllBtn: document.getElementById('runAutoDetectAllBtn'),
+      newBoxLabelInput: document.getElementById('newBoxLabelInput'),
+      labelDataList: document.getElementById('labelDataList'),
+      cancelLabelBtn: document.getElementById('cancelLabelBtn'),
+      confirmLabelBtn: document.getElementById('confirmLabelBtn'),
+      closeLabelModalBtn: document.getElementById('closeLabelModalBtn')
+    };
+
+    function showToast(message) {
+      els.toast.textContent = message;
+      els.toast.style.display = 'block';
+      clearTimeout(showToast.t);
+      showToast.t = setTimeout(() => els.toast.style.display = 'none', 1800);
+    }
+    function setDebug(m) { els.debugPanel.textContent = m; }
+
+    async function saveToServer(filename, xmlContent) {
+      try {
+        const r = await fetch('/save_xml', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({filename, xml: xmlContent}) });
+        return r.ok;
+      } catch (e) { console.error('Save to server failed:', e); return false; }
+    }
+
+    function updateImageCount() {
+      const annotatedCount = state.images.filter(img => (state.boxes[img.key] || []).length > 0).length;
+      els.imageCountBadge.textContent = state.images.length ? `${state.currentIndex+1} / ${state.images.length} (${annotatedCount} annotated)` : '0 / 0';
+    }
+
+    function scheduleAutoSave() {
+      if (!state.autoSave || !state.images.length) return;
+      clearTimeout(scheduleAutoSave.t);
+      scheduleAutoSave.t = setTimeout(async () => {
+        const image = state.images[state.currentIndex];
+        if (!image) return;
+        const boxes = state.boxes[image.key] || [];
+        const isVerified = state.verifiedImages[image.key] || false;
+        if (boxes.length) {
+          const xml = await buildPascalVocXml(image, boxes, isVerified);
+          state.autoSaveCache[image.key] = xml;
+          await saveToServer(`${xmlBaseName(image.name)}.xml`, xml);
+        } else { delete state.autoSaveCache[image.key]; }
+        try { localStorage.setItem('modern_annotation_auto_save', JSON.stringify(state.autoSaveCache)); } catch(e) {}
+        if (state.xmlFolderHandle) await autoSaveToXmlFolder(image, boxes, isVerified);
+      }, 250);
+    }
+
+    async function writeXmlFileToFolder(fileName, xml) {
+      if (!state.xmlFolderHandle) return false;
+      try {
+        const fh = await state.xmlFolderHandle.getFileHandle(fileName, {create:true});
+        const w = await fh.createWritable();
+        await w.write(xml); await w.close(); return true;
+      } catch { return false; }
+    }
+
+    async function autoSaveToXmlFolder(image, boxes, isVerified = false) {
+      if (!state.xmlFolderHandle || !boxes.length) return;
+      const xml = await buildPascalVocXml(image, boxes, isVerified);
+      await writeXmlFileToFolder(`${xmlBaseName(image.name)}.xml`, xml);
+    }
+
+    function currentKey() { const i = state.images[state.currentIndex]; return i ? i.key : 'image'; }
+
+    function getLabelColor(label) {
+      const key = String(label||'object').trim();
+      if (state.labelColors[key]) return state.labelColors[key];
+      const palette = ['#10b981','#f472b6','#60a5fa','#fbbf24','#818cf8','#34d399','#fb7185','#a78bfa','#38bdf8','#f97316','#2dd4bf','#facc15','#8b5cf6'];
+      const hash = Array.from(new TextEncoder().encode(key.toLowerCase())).reduce((a,b) => (a*31+b)>>>0, 0);
+      state.labelColors[key] = palette[hash % palette.length];
+      return state.labelColors[key];
+    }
+
+    function fileBaseName(n) { return n.split('/').pop().replace(/\.[^/.]+$/,'').toLowerCase(); }
+    function imageNameCandidates(img) { return [img.name, img.path, fileBaseName(img.name), fileBaseName(img.path||img.name)].filter(Boolean).map(v=>v.toLowerCase()); }
+    function isImageFile(f) { return f.type.startsWith('image/') || /\.(jpe?g|png|gif|bmp|webp|tiff?)$/i.test(f.name); }
+    function cleanLabel(v) { return (v||'').trim()||'object'; }
+    function escapeXml(v) { return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+    function xmlBaseName(n) { return (n||'annotation').split('/').pop().replace(/\.[^/.]+$/,'')||'annotation'; }
+    function clamp(v,min,max) { return Math.max(min,Math.min(max,v)); }
+
+    const crcTable = (() => {
+      const t = new Uint32Array(256);
+      for (let i=0;i<256;i++) { let v=i; for (let b=0;b<8;b++) v=v&1?0xedb88320^(v>>>1):v>>>1; t[i]=v>>>0; }
+      return t;
+    })();
+    function crc32(b) { let c=0xffffffff; b.forEach(x=>c=crcTable[(c^x)&0xff]^(c>>>8)); return (c^0xffffffff)>>>0; }
+    function dosDateTime(d=new Date()) { return { time:(d.getHours()<<11)|(d.getMinutes()<<5)|Math.floor(d.getSeconds()/2), date:((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate() }; }
+
+    function createZip(entries) {
+      const enc = new TextEncoder(), lp=[], cp=[], ts=dosDateTime(); let off=0;
+      entries.forEach(e => {
+        const nb=enc.encode(e.name), db=enc.encode(e.content), crc=crc32(db);
+        const lh=new ArrayBuffer(30+nb.length), lv=new DataView(lh);
+        lv.setUint32(0,0x04034b50,true); lv.setUint16(4,20,true); lv.setUint16(8,0,true);
+        lv.setUint16(10,ts.time,true); lv.setUint16(12,ts.date,true);
+        lv.setUint32(14,crc,true); lv.setUint32(18,db.length,true); lv.setUint32(22,db.length,true);
+        lv.setUint16(26,nb.length,true); new Uint8Array(lh,30).set(nb);
+        const ch=new ArrayBuffer(46+nb.length), cv=new DataView(ch);
+        cv.setUint32(0,0x02014b50,true); cv.setUint16(4,20,true); cv.setUint16(6,20,true);
+        cv.setUint16(12,ts.time,true); cv.setUint16(14,ts.date,true);
+        cv.setUint32(16,crc,true); cv.setUint32(20,db.length,true); cv.setUint32(24,db.length,true);
+        cv.setUint16(28,nb.length,true); cv.setUint32(42,off,true); new Uint8Array(ch,46).set(nb);
+        lp.push(new Uint8Array(lh),db); cp.push(new Uint8Array(ch)); off+=lh.byteLength+db.length;
+      });
+      const cs=cp.reduce((s,p)=>s+p.length,0), eh=new ArrayBuffer(22), ev=new DataView(eh);
+      ev.setUint32(0,0x06054b50,true); ev.setUint16(8,entries.length,true); ev.setUint16(10,entries.length,true);
+      ev.setUint32(12,cs,true); ev.setUint32(16,off,true);
+      return new Blob([...lp,...cp,new Uint8Array(eh)],{type:'application/zip'});
+    }
+
+    function downloadZip(fn, entries) {
+      const url=URL.createObjectURL(createZip(entries)), a=document.createElement('a');
+      a.href=url; a.download=fn; a.click(); URL.revokeObjectURL(url);
+    }
+
+    function addKnownLabel(v) {
+      const label=cleanLabel(v);
+      if (!state.labels.some(i=>i.toLowerCase()===label.toLowerCase())) {
+        state.labels.push(label); state.labels.sort((a,b)=>a.localeCompare(b));
+        try { localStorage.setItem('modern_annotation_labels',JSON.stringify(state.labels)); } catch(e) {}
+        renderLabelOptions();
+      }
+      return label;
+    }
+
+    let pendingBoxCallback = null;
+    let pendingBoxCancel = null;
+
+    function promptForLabel(box, onSuccess, onCancel) {
+      if (state.useDefaultLabel) {
+        box.label = cleanLabel(state.currentLabel);
+        onSuccess(box);
+        return;
+      }
+      els.labelModal.style.display = 'flex';
+      els.newBoxLabelInput.value = state.currentLabel;
+      els.labelDataList.innerHTML = '';
+      state.labels.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l;
+        els.labelDataList.appendChild(opt);
+      });
+      els.newBoxLabelInput.focus();
+      els.newBoxLabelInput.select();
+      
+      pendingBoxCallback = (label) => {
+        box.label = cleanLabel(label);
+        onSuccess(box);
+        closeLabelModal();
+      };
+      pendingBoxCancel = () => {
+        if (onCancel) onCancel();
+        closeLabelModal();
+      };
+    }
+
+    function closeLabelModal() {
+      els.labelModal.style.display = 'none';
+      pendingBoxCallback = null;
+      pendingBoxCancel = null;
+    }
+
+    function pushUndo(action) {
+      state.undoStack.push(action);
+      if (state.undoStack.length > state.maxUndoStack) state.undoStack.shift();
+    }
+
+    function performUndo() {
+      if (!state.undoStack.length) { showToast('Nothing to undo'); return; }
+      const action = state.undoStack.pop();
+      const boxes = state.boxes[action.imageKey] || [];
+      if (action.type==='add') { boxes.pop(); state.selectedBox=null; }
+      else if (action.type==='delete') { boxes.splice(action.index,0,action.box); state.selectedBox=action.index; }
+      else if (action.type==='edit') { boxes[action.index]={...action.originalBox}; state.selectedBox=action.index; }
+      updateImageCount();
+      renderBoxes(); showToast('Undo');
+    }
+
+    function markImageVerified() {
+      if (!state.images.length) return showToast('Open an image first');
+      const key=currentKey();
+      state.verifiedImages[key]=!state.verifiedImages[key];
+      updateImageVerifyUI();
+      showToast(state.verifiedImages[key]?`✓ Verified`:`Unverified`);
+    }
+
+    function updateImageVerifyUI() {
+      const v = state.verifiedImages[currentKey()];
+      els.verifyBtn.classList.toggle('verified-active', !!v);
+    }
+
+    function setCurrentLabel(v) {
+      state.currentLabel=addKnownLabel(v);
+      els.labelInput.value=state.currentLabel;
+      els.labelSelect.value=state.currentLabel;
+      els.selectedBoxLabelSelect.value=state.currentLabel;
+    }
+
+    function selectedBox() {
+      const boxes=state.boxes[currentKey()]||[];
+      return state.selectedBox===null?null:boxes[state.selectedBox]||null;
+    }
+
+    function updateSelectedBoxLabel(v) {
+      const box=selectedBox(); if (!box) return;
+      box.label=addKnownLabel(v); setCurrentLabel(box.label); renderBoxes();
+    }
+
+    function renderLabelOptions() {
+      els.labelSelect.replaceChildren(); els.selectedBoxLabelSelect.replaceChildren();
+      state.labels.forEach(l => {
+        els.labelSelect.add(new Option(l,l));
+        els.selectedBoxLabelSelect.add(new Option(l,l));
+      });
+      els.labelSelect.value=state.currentLabel;
+      els.selectedBoxLabelSelect.value=selectedBox()?.label||state.currentLabel;
+    }
+
+    function applyZoom() {
+      // Determine dimensions taking the current zoom into account
+      const iw = (els.activeImage.naturalWidth || 1) * state.zoom;
+      const ih = (els.activeImage.naturalHeight || 1) * state.zoom;
+      
+      els.scrollWrapper.style.width = `${iw}px`;
+      els.scrollWrapper.style.height = `${ih}px`;
+      
+      els.imageWrap.style.transform=`scale(${state.zoom})`;
+      els.zoomLabel.textContent=`${Math.round(state.zoom*100)}%`;
+    }
+
+    function calculateFitZoom() {
+      const iw = els.activeImage.naturalWidth || 1, ih = els.activeImage.naturalHeight || 1;
+      const uw = els.imageStage.clientWidth || els.workspace.clientWidth || 320;
+      const uh = els.imageStage.clientHeight || els.workspace.clientHeight || 240;
+      return clamp(Math.min(uw / iw, uh / ih) * 0.95, 0.1, 10);
+    }
+
+    function renderImage() {
+      const image=state.images[state.currentIndex]; if (!image) return;
+      try { localStorage.setItem('modern_annotation_last_image',image.key); } catch(e) {}
+      els.emptyState.style.display='none';
+      els.imageStage.style.display='flex';
+      els.imageInfo.textContent=`Loading ${image.name}…`;
+      setDebug(`Loading ${image.name}`);
+      els.boxLayer.innerHTML='';
+      els.activeImage.onload=() => {
+        els.imageWrap.style.width=`${els.activeImage.naturalWidth}px`;
+        els.imageWrap.style.height=`${els.activeImage.naturalHeight}px`;
+        els.boxLayer.style.width=`${els.activeImage.naturalWidth}px`;
+        els.boxLayer.style.height=`${els.activeImage.naturalHeight}px`;
+        image.width=els.activeImage.naturalWidth; image.height=els.activeImage.naturalHeight; image.depth=3;
+        if (state.autoFitImage) state.zoom=calculateFitZoom();
+        applyZoom();
+        els.imageInfo.textContent=`${image.name}  ·  ${els.activeImage.naturalWidth}×${els.activeImage.naturalHeight}`;
+        updateImageCount(); setDebug(`${image.name}`); updateImageVerifyUI(); renderBoxes();
+      };
+      els.activeImage.onerror=() => { showToast(`Could not load ${image.name}`); };
+      applyZoom(); els.activeImage.src=image.url;
+    }
+
+    function applyImportedBoxes() {
+      state.images.forEach(img => {
+        const m = imageNameCandidates(img).find(n => Object.prototype.hasOwnProperty.call(state.annotationsByName, n));
+        if (m) {
+          state.boxes[img.key] = state.annotationsByName[m].map(b => ({...b}));
+          if (state.verifiedByName?.[m]) state.verifiedImages[img.key] = true;
+        }
+      });
+      updateImageVerifyUI();
+    }
+
+    function readImageFile(file) {
+      return new Promise((res,rej) => {
+        const r=new FileReader();
+        r.onload=()=>res({key:file.webkitRelativePath||file.name,name:file.name,path:file.webkitRelativePath||file.name,url:r.result});
+        r.onerror=()=>rej(file.name); r.readAsDataURL(file);
+      });
+    }
+
+    function getImageSize(img) {
+      if (img.width&&img.height) return Promise.resolve({width:img.width,height:img.height,depth:img.depth||3});
+      return new Promise((res,rej) => {
+        const i=new Image();
+        i.onload=()=>{ img.width=i.naturalWidth; img.height=i.naturalHeight; img.depth=3; res({width:img.width,height:img.height,depth:3}); };
+        i.onerror=()=>rej(new Error(`Could not read size for ${img.name}`)); i.src=img.url;
+      });
+    }
+
+    async function loadImages(fileList) {
+      const files=Array.from(fileList||[]);
+      const imgFiles=files.filter(isImageFile).sort((a,b)=>(a.webkitRelativePath||a.name).localeCompare(b.webkitRelativePath||b.name));
+      state.images=imgFiles; state.currentIndex=0; state.selectedBox=null; state.zoom=1; state.autoFitImage=true; state.boxVisibility={};
+      updateImageCount();
+      if (state.images.length) {
+        setDebug(`Reading ${state.images.length} image(s)…`);
+        state.images=await Promise.all(state.images.map(readImageFile));
+        applyImportedBoxes();
+        try { const lk=localStorage.getItem('modern_annotation_last_image'); if (lk) { const fi=state.images.findIndex(i=>i.key===lk); if (fi!==-1) state.currentIndex=fi; } } catch(e) {}
+        renderImage(); showToast(`${state.images.length} image(s) loaded`);
+        if (state.images.length > 0) {
+          els.autoDetectImageCount.textContent = state.images.length;
+          els.autoDetectProgress.style.display = 'none';
+          els.runAutoDetectAllBtn.disabled = false;
+          els.runAutoDetectAllBtn.innerHTML = 'Run on All';
+          els.skipAutoDetectAllBtn.disabled = false;
+          els.autoDetectAllModal.style.display = 'flex';
+        }
+      } else { setDebug('No image files found.'); showToast('No image files found'); updateImageCount(); }
+    }
+
+    function readEntryFile(e) { return new Promise((res,rej)=>e.file(res,rej)); }
+    function readDirEntries(r) { return new Promise((res,rej)=>r.readEntries(res,rej)); }
+    async function collectDropped(entry) {
+      if (!entry) return [];
+      if (entry.isFile) return [await readEntryFile(entry)];
+      if (!entry.isDirectory) return [];
+      const r=entry.createReader(), files=[]; let batch=[];
+      do { batch=await readDirEntries(r); const n=await Promise.all(batch.map(collectDropped)); files.push(...n.flat()); } while (batch.length);
+      return files;
+    }
+
+    async function handleDrop(event) {
+      event.preventDefault();
+      els.workspace.style.outline='none';
+      const items=Array.from(event.dataTransfer.items||[]);
+      const entries=items.map(i=>i.webkitGetAsEntry?i.webkitGetAsEntry():null).filter(Boolean);
+      let files = [];
+      if (entries.length) { const n=await Promise.all(entries.map(collectDropped)); files = n.flat(); }
+      else { files = Array.from(event.dataTransfer.files); }
+      
+      const xmlFiles = files.filter(f => f.name.toLowerCase().endsWith('.xml'));
+      if (xmlFiles.length) await loadXmlAnnotations(xmlFiles);
+      
+      const imgFiles = files.filter(isImageFile);
+      if (imgFiles.length) await loadImages(imgFiles);
+    }
+
+    function getXmlText(doc,tag) { const n=doc.getElementsByTagName(tag)[0]; return n&&n.textContent?n.textContent.trim():''; }
+
+    function xmlObjectToBox(obj) {
+      const bn=obj.getElementsByTagName('bndbox')[0]; if (!bn) return null;
+      const rn=t=>{ const n=bn.getElementsByTagName(t)[0]; return Number(n&&n.textContent?n.textContent:0); };
+      const xmin=rn('xmin'),ymin=rn('ymin'),xmax=rn('xmax'),ymax=rn('ymax');
+      if (xmax<=xmin||ymax<=ymin) return null;
+      
+      const poly = obj.getElementsByTagName('polygon')[0];
+      if (poly) {
+        const pts = Array.from(poly.getElementsByTagName('pt')).map(ptNode => ({
+          x: Number(ptNode.getElementsByTagName('x')[0]?.textContent || 0),
+          y: Number(ptNode.getElementsByTagName('y')[0]?.textContent || 0)
+        }));
+        if (pts.length > 2) {
+          return { type: 'polygon', points: pts, x: xmin, y: ymin, width: xmax - xmin, height: ymax - ymin, label: getXmlText(obj, 'name') || 'object' };
+        }
+      }
+      return {x:xmin,y:ymin,width:xmax-xmin,height:ymax-ymin,label:getXmlText(obj,'name')||'object'};
+    }
+
+    async function loadXmlAnnotations(fileList) {
+      const xmlFiles=Array.from(fileList||[]).filter(f=>f.name.toLowerCase().endsWith('.xml'));
+      const imported={}, verified={};
+      for (const file of xmlFiles) {
+        const text=await file.text(), doc=new DOMParser().parseFromString(text,'application/xml');
+        if (doc.querySelector('parsererror')) continue;
+        const an=doc.querySelector('annotation'), iv=an&&an.getAttribute('verified')==='yes';
+        const fn=getXmlText(doc,'filename'), path=getXmlText(doc,'path'), fb=file.name.replace(/\.xml$/i,'');
+        const boxes=Array.from(doc.getElementsByTagName('object')).map(xmlObjectToBox).filter(Boolean);
+        [fn,path,fileBaseName(fn||fb),fb].filter(Boolean).forEach(n=>{ const l=n.toLowerCase(); imported[l]=boxes; if (iv) verified[l]=true; });
+      }
+      state.annotationsByName={...state.annotationsByName,...imported};
+      state.verifiedByName={...state.verifiedByName,...verified};
+      applyImportedBoxes();
+      Object.values(imported).flat().forEach(b=>addKnownLabel(b.label));
+      updateImageCount();
+      renderBoxes(); showToast(`${xmlFiles.length} XML file(s) loaded`);
+    }
+
+    async function buildPascalVocXml(image, boxes, isVerified=false) {
+      const sz=await getImageSize(image);
+      const folder=(image.path||image.name).includes('/')?(image.path||image.name).split('/').slice(0,-1).join('/'):'' ;
+      const objects=boxes.map(b=>{
+        if (b.type === 'polygon') {
+          const xmin=Math.max(1,Math.round(b.x)),ymin=Math.max(1,Math.round(b.y));
+          const xmax=Math.min(sz.width,Math.round(b.x+b.width)),ymax=Math.min(sz.height,Math.round(b.y+b.height));
+          const pts = b.points.map(p => `      <pt>\n        <x>${Math.round(p.x)}</x>\n        <y>${Math.round(p.y)}</y>\n      </pt>`).join('\n');
+          return `  <object>\n    <name>${escapeXml(b.label||state.currentLabel||'object')}</name>\n    <pose>Unspecified</pose>\n    <truncated>0</truncated>\n    <difficult>0</difficult>\n    <bndbox>\n      <xmin>${xmin}</xmin>\n      <ymin>${ymin}</ymin>\n      <xmax>${xmax}</xmax>\n      <ymax>${ymax}</ymax>\n    </bndbox>\n    <polygon>\n${pts}\n    </polygon>\n  </object>`;
+        }
+        const xmin=Math.max(1,Math.round(b.x)),ymin=Math.max(1,Math.round(b.y));
+        const xmax=Math.min(sz.width,Math.round(b.x+b.width)),ymax=Math.min(sz.height,Math.round(b.y+b.height));
+        return `  <object>\n    <name>${escapeXml(b.label||state.currentLabel||'object')}</name>\n    <pose>Unspecified</pose>\n    <truncated>0</truncated>\n    <difficult>0</difficult>\n    <bndbox>\n      <xmin>${xmin}</xmin>\n      <ymin>${ymin}</ymin>\n      <xmax>${xmax}</xmax>\n      <ymax>${ymax}</ymax>\n    </bndbox>\n  </object>`;
+      }).join('\n');
+      const va=isVerified?' verified="yes"':'';
+      return `<annotation${va}>\n  <folder>${escapeXml(folder)}</folder>\n  <filename>${escapeXml(image.name)}</filename>\n  <path>${escapeXml(image.path||image.name)}</path>\n  <source>\n    <database>Unknown</database>\n  </source>\n  <size>\n    <width>${sz.width}</width>\n    <height>${sz.height}</height>\n    <depth>${sz.depth}</depth>\n  </size>\n  <segmented>0</segmented>\n${objects}\n</annotation>\n`;
+    }
+
+    function validateXml(xmlString) {
+      const p=new DOMParser(), d=p.parseFromString(xmlString,'application/xml');
+      if (d.getElementsByTagName('parsererror').length) throw new Error('XML parse error');
+      if (!d.querySelector('annotation')) throw new Error('Missing <annotation>');
+      if (!d.querySelector('filename')) throw new Error('Missing <filename>');
+      const sz=d.querySelector('size'); if (!sz) throw new Error('Missing <size>');
+      if (!sz.querySelector('width')||!sz.querySelector('height')||!sz.querySelector('depth')) throw new Error('Missing size dimensions');
+      d.querySelectorAll('object').forEach((obj,i) => {
+        if (!obj.querySelector('name')) throw new Error(`Object ${i+1}: Missing <name>`);
+        const bb=obj.querySelector('bndbox'); if (!bb) throw new Error(`Object ${i+1}: Missing <bndbox>`);
+        const xmin=parseInt(bb.querySelector('xmin')?.textContent||'',10), ymin=parseInt(bb.querySelector('ymin')?.textContent||'',10);
+        const xmax=parseInt(bb.querySelector('xmax')?.textContent||'',10), ymax=parseInt(bb.querySelector('ymax')?.textContent||'',10);
+        if ([xmin,ymin,xmax,ymax].some(isNaN)) throw new Error(`Object ${i+1}: Invalid coords`);
+        if (xmin<=0||ymin<=0) throw new Error(`Object ${i+1}: Coords must be positive`);
+        if (xmax<=xmin||ymax<=ymin) throw new Error(`Object ${i+1}: Invalid box dimensions`);
+      });
+      return true;
+    }
+
+    async function savePascalVocAnnotations() {
+      if (!state.images.length) return showToast('Open images first');
+      const ann=state.images.filter(img=>(state.boxes[img.key]||[]).length);
+      if (!ann.length) return showToast('No boxes to save');
+      let sc=0,sfc=0,ssc=0;
+      for (const img of ann) {
+        const boxes=state.boxes[img.key]||[], iv=state.verifiedImages[img.key]||false;
+        const xml=await buildPascalVocXml(img,boxes,iv);
+        state.autoSaveCache[img.key]=xml;
+        const fn=`${xmlBaseName(img.name)}.xml`;
+        if (await saveToServer(fn,xml)) ssc++;
+        if (state.xmlFolderHandle&&await writeXmlFileToFolder(fn,xml)) sfc++;
+        sc++;
+      }
+      showToast(`✓ Saved ${sc} annotation(s)${state.xmlFolderHandle?` (${sfc} to XML folder)`:''}`);
+    }
+
+    async function downloadAllAnnotations() {
+      if (!state.images.length) return showToast('Open images first');
+      const ann=state.images.filter(img=>(state.boxes[img.key]||[]).length);
+      if (!ann.length) return showToast('No boxes to download');
+      const entries=[],errors=[];
+      for (const img of ann) {
+        try {
+          const xml=await buildPascalVocXml(img,state.boxes[img.key]||[],state.verifiedImages[img.key]||false);
+          validateXml(xml); state.autoSaveCache[img.key]=xml;
+          entries.push({name:`${xmlBaseName(img.name)}.xml`,content:xml});
+        } catch(e) { errors.push(`${xmlBaseName(img.name)}: ${e.message}`); }
+      }
+      if (errors.length) { showToast(`⚠ ${errors.length} failed`); errors.slice(0,3).forEach(e=>console.error(e)); return; }
+      downloadZip('annotations.zip',entries); showToast(`✓ ${entries.length} file(s) downloaded`);
+    }
+
+    async function downloadVerifiedAnnotations() {
+      if (!state.images.length) return showToast('Open images first');
+      const ann=state.images.filter(img=>state.verifiedImages[img.key]&&(state.boxes[img.key]||[]).length);
+      if (!ann.length) return showToast('No verified annotations');
+      const entries=[],errors=[];
+      for (const img of ann) {
+        try {
+          const xml=await buildPascalVocXml(img,state.boxes[img.key]||[],true);
+          validateXml(xml); state.autoSaveCache[img.key]=xml;
+          entries.push({name:`${xmlBaseName(img.name)}.xml`,content:xml});
+        } catch(e) { errors.push(`${xmlBaseName(img.name)}: ${e.message}`); }
+      }
+      if (errors.length) { showToast(`⚠ ${errors.length} failed`); return; }
+      downloadZip('verified_annotations.zip',entries); showToast(`✓ ${entries.length} verified file(s) downloaded`);
+    }
+
+    async function downloadAndVerifyXml() {
+      if (!state.images.length) return showToast('Open images first');
+      const ann=state.images.filter(img=>(state.boxes[img.key]||[]).length);
+      if (!ann.length) return showToast('No boxes to download');
+      const entries=[],errors=[];
+      for (const img of ann) {
+        try {
+          state.verifiedImages[img.key]=true;
+          const xml=await buildPascalVocXml(img,state.boxes[img.key]||[],true);
+          validateXml(xml); state.autoSaveCache[img.key]=xml;
+          entries.push({name:`${xmlBaseName(img.name)}.xml`,content:xml});
+        } catch(e) { errors.push(`${xmlBaseName(img.name)}: ${e.message}`); }
+      }
+      if (errors.length) { showToast(`⚠ ${errors.length} failed`); return; }
+      downloadZip('annotations.zip',entries); showToast(`✓ ${entries.length} file(s) verified & exported`);
+    }
+
+    function renderBoxes() {
+      els.boxLayer.innerHTML='';
+      const boxes=state.boxes[currentKey()]||[], vis=state.boxVisibility[currentKey()]||{};
+      boxes.forEach((box,index) => {
+        if (vis[index]===false) return;
+        const label=box.label||'object', color=getLabelColor(label), sel=state.selectedBox===index;
+        
+        if (box.type === 'polygon') {
+          const polyEl=document.createElement('div');
+          polyEl.style.cssText=`position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none;`;
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svg.style.cssText = `position:absolute; inset:0; width:100%; height:100%; pointer-events:none; overflow:visible;`;
+          const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          polygon.setAttribute('points', box.points.map(p => `${p.x},${p.y}`).join(' '));
+          polygon.setAttribute('fill', `${color}18`);
+          polygon.setAttribute('stroke', sel ? '#f6ad55' : color);
+          polygon.setAttribute('stroke-width', sel ? '2' : '2');
+          polygon.style.pointerEvents = 'auto';
+          svg.appendChild(polygon);
+          polyEl.appendChild(svg);
+          const lbl=document.createElement('span');
+          lbl.style.cssText=`position:absolute; top:${Math.max(0, box.y - 22)}px; left:${box.x}px; background:${color}; color:#fff; font-size:10px; font-weight:600; padding:2px 6px; border-radius:3px; white-space:nowrap; font-family:'DM Sans',sans-serif; letter-spacing:0.02em; pointer-events:auto;`;
+          lbl.textContent=label;
+          if (state.showLabels) polyEl.appendChild(lbl);
+          if (sel && state.editMode) {
+             box.points.forEach((p, pi) => {
+                const hEl = document.createElement('div');
+                hEl.style.cssText=`position:absolute; width:10px; height:10px; background:#f6ad55; border:1.5px solid rgba(255,255,255,0.8); border-radius:50%; z-index:10; cursor:crosshair; left:${p.x - 5}px; top:${p.y - 5}px; pointer-events:auto;`;
+                hEl.dataset.handle = `poly_${pi}`;
+                hEl.addEventListener('mousedown', e => {
+                  e.preventDefault(); e.stopPropagation();
+                  state.selectedBox=index; state.editingResize=true; state.editingResizeHandle=`poly_${pi}`;
+                  const pt=getLayerPoint(e); state.editStartX=pt.x; state.editStartY=pt.y; 
+                  state.editOriginalBox = JSON.parse(JSON.stringify(box));
+                  setCurrentLabel(box.label||state.currentLabel);
+                });
+                polyEl.appendChild(hEl);
+             });
+          }
+          polygon.addEventListener('click', e => { e.stopPropagation(); state.selectedBox=index; setCurrentLabel(box.label||state.currentLabel); renderBoxList(); renderClasses(); });
+          polygon.addEventListener('mousedown', e => {
+            if (!state.editMode||!state.images.length||e.target.dataset.handle) return;
+            e.preventDefault(); e.stopPropagation();
+            state.selectedBox=index; state.isEditing=true;
+            const pt=getLayerPoint(e); state.editStartX=pt.x; state.editStartY=pt.y; 
+            state.editOriginalBox = JSON.parse(JSON.stringify(box));
+            setCurrentLabel(box.label||state.currentLabel);
+          });
+          els.boxLayer.appendChild(polyEl);
+          return;
+        }
+
+        const boxEl=document.createElement('button');
+        boxEl.type='button';
+        boxEl.style.cssText=`position:absolute; border:2px solid ${sel?'#f6ad55':color}; background:${color}18; left:${box.x}px; top:${box.y}px; width:${box.width}px; height:${box.height}px; cursor:default; padding:0;`;
+        if (sel) boxEl.style.boxShadow=`0 0 0 1px ${color}44`;
+        const lbl=document.createElement('span');
+        lbl.style.cssText=`position:absolute; top:-22px; left:-1px; background:${color}; color:#fff; font-size:10px; font-weight:600; padding:2px 6px; border-radius:3px; white-space:nowrap; font-family:'DM Sans',sans-serif; letter-spacing:0.02em;`;
+        lbl.textContent=label;
+        if (state.showLabels) boxEl.appendChild(lbl);
+
+        if (sel && state.editMode) {
+          ['nw','ne','sw','se','n','s','e','w'].forEach(h => {
+            const hEl=document.createElement('div');
+            const cur=h==='nw'||h==='se'?'nwse-resize':h==='ne'||h==='sw'?'nesw-resize':h==='n'||h==='s'?'ns-resize':'ew-resize';
+            hEl.style.cssText=`position:absolute; width:10px; height:10px; background:#f6ad55; border:1.5px solid rgba(255,255,255,0.8); border-radius:50%; z-index:10; cursor:${cur};`;
+            if (h==='nw') Object.assign(hEl.style,{top:'-5px',left:'-5px'});
+            else if (h==='ne') Object.assign(hEl.style,{top:'-5px',right:'-5px'});
+            else if (h==='sw') Object.assign(hEl.style,{bottom:'-5px',left:'-5px'});
+            else if (h==='se') Object.assign(hEl.style,{bottom:'-5px',right:'-5px'});
+            else if (h==='n') Object.assign(hEl.style,{top:'-5px',left:'50%',transform:'translateX(-50%)'});
+            else if (h==='s') Object.assign(hEl.style,{bottom:'-5px',left:'50%',transform:'translateX(-50%)'});
+            else if (h==='e') Object.assign(hEl.style,{right:'-5px',top:'50%',transform:'translateY(-50%)'});
+            else if (h==='w') Object.assign(hEl.style,{left:'-5px',top:'50%',transform:'translateY(-50%)'});
+            hEl.dataset.handle=h;
+            hEl.addEventListener('mousedown', e => {
+              e.preventDefault(); e.stopPropagation();
+              state.selectedBox=index; state.editingResize=true; state.editingResizeHandle=h;
+              const pt=getLayerPoint(e); state.editStartX=pt.x; state.editStartY=pt.y; state.editOriginalBox={...box};
+              setCurrentLabel(box.label||state.currentLabel);
+            });
+            boxEl.appendChild(hEl);
+          });
+        }
+
+        boxEl.addEventListener('click', e => { e.stopPropagation(); state.selectedBox=index; setCurrentLabel(box.label||state.currentLabel); renderBoxList(); renderClasses(); });
+        boxEl.addEventListener('mousedown', e => {
+          if (!state.editMode||!state.images.length||e.target.dataset.handle) return;
+          e.preventDefault(); e.stopPropagation();
+          state.selectedBox=index; state.isEditing=true;
+          const pt=getLayerPoint(e); state.editStartX=pt.x; state.editStartY=pt.y; state.editOriginalBox={...box};
+          setCurrentLabel(box.label||state.currentLabel);
+        });
+        els.boxLayer.appendChild(boxEl);
+      });
+      renderLabelOptions(); renderBoxList(); renderClasses(); scheduleAutoSave();
+    }
+
+    function renderBoxList() {
+      els.boxListContainer.innerHTML='';
+      const boxes=state.boxes[currentKey()]||[], vis=state.boxVisibility[currentKey()]||{};
+      if (!boxes.length) { els.boxListContainer.innerHTML='<p class="empty-msg">No boxes on this image</p>'; return; }
+      boxes.forEach((box,index) => {
+        const iv=vis[index]!==false, isSel=state.selectedBox===index;
+        const item=document.createElement('div');
+        item.className=`box-list-item${isSel?' selected':''}`;
+        item.style.marginBottom='2px';
+        const vBtn=document.createElement('button');
+        vBtn.className='vis-btn';
+        vBtn.innerHTML=iv?'<i class="fa-solid fa-eye"></i>':'<i class="fa-solid fa-eye-slash"></i>';
+        vBtn.addEventListener('click', e => { e.stopPropagation(); state.boxVisibility[currentKey()]=state.boxVisibility[currentKey()]||{}; state.boxVisibility[currentKey()][index]=!iv; renderBoxes(); renderClasses(); });
+        const dot=document.createElement('span'); dot.className='box-dot'; dot.style.background=getLabelColor(box.label||'object');
+        const lbl=document.createElement('span'); lbl.className='box-label'; lbl.textContent=`${box.label||'object'} #${index+1}`;
+        item.appendChild(vBtn); item.appendChild(dot); item.appendChild(lbl);
+        item.addEventListener('click', () => { state.selectedBox=index; setCurrentLabel(box.label||state.currentLabel); renderBoxes(); });
+        els.boxListContainer.appendChild(item);
+      });
+    }
+
+    function renderClasses() {
+      els.classesContainer.innerHTML='';
+      const boxes=state.boxes[currentKey()]||[], vis=state.boxVisibility[currentKey()]||{};
+      if (!boxes.length) return;
+      // All row
+      const allItem=document.createElement('label'); allItem.className='class-item';
+      const allCb=document.createElement('input'); allCb.type='checkbox'; allCb.className=''; allCb.style.cssText='width:12px;height:12px;accent-color:var(--accent);cursor:pointer;';
+      allCb.checked=boxes.every((_,i)=>vis[i]!==false);
+      allCb.addEventListener('change',()=>{ state.boxVisibility[currentKey()]={}; boxes.forEach((_,i)=>state.boxVisibility[currentKey()][i]=allCb.checked); renderBoxes(); });
+      const allLbl=document.createElement('span'); allLbl.className='class-name'; allLbl.style.fontWeight='500'; allLbl.style.color='var(--text-primary)'; allLbl.textContent='All';
+      const allCnt=document.createElement('span'); allCnt.className='class-count'; allCnt.textContent=boxes.length;
+      allItem.appendChild(allCb); allItem.appendChild(allLbl); allItem.appendChild(allCnt);
+      els.classesContainer.appendChild(allItem);
+      const cm={};
+      boxes.forEach((b,i)=>{ const l=b.label||'object'; if (!cm[l]) cm[l]={count:0,vc:0,idx:[]}; cm[l].count++; cm[l].idx.push(i); if (vis[i]!==false) cm[l].vc++; });
+      Object.entries(cm).forEach(([label,data])=>{
+        const ci=document.createElement('label'); ci.className='class-item';
+        const cb=document.createElement('input'); cb.type='checkbox'; cb.style.cssText='width:12px;height:12px;accent-color:var(--accent);cursor:pointer;';
+        cb.checked=data.vc>0; cb.indeterminate=data.vc>0&&data.vc<data.count;
+        cb.addEventListener('change',()=>{ state.boxVisibility[currentKey()]=state.boxVisibility[currentKey()]||{}; data.idx.forEach(i=>state.boxVisibility[currentKey()][i]=cb.checked); renderBoxes(); });
+        const dot=document.createElement('span'); dot.className='box-dot'; dot.style.background=getLabelColor(label);
+        const lbl=document.createElement('span'); lbl.className='class-name'; lbl.textContent=label; lbl.title=label;
+        const cnt=document.createElement('span'); cnt.className='class-count'; cnt.textContent=data.count;
+        ci.appendChild(cb); ci.appendChild(dot); ci.appendChild(lbl); ci.appendChild(cnt);
+        els.classesContainer.appendChild(ci);
+      });
+    }
+
+    function setDrawMode(en) {
+      state.drawMode=en; if (en) { setPolygonMode(false); setEditMode(false,false); }
+      els.createBoxBtn.classList.toggle('active-draw',en);
+      els.boxLayer.style.cursor=en?'crosshair':'default';
+      showToast(en?'Draw mode — click & drag':'Draw mode off');
+    }
+
+    function setEditMode(en,notify=true) {
+      state.editMode=en; state.isEditing=false; state.editOriginalBox=null;
+      if (en&&state.drawMode) setDrawMode(false);
+      if (en&&state.polygonMode) setPolygonMode(false);
+      els.boxLayer.style.cursor=en?'move':'default';
+      if (notify) showToast(en?'Edit mode — drag to move':'Edit mode off');
+      renderBoxes();
+    }
+
+    function getLayerPoint(e) {
+      const r=els.boxLayer.getBoundingClientRect();
+      return {x:(e.clientX-r.left)/state.zoom, y:(e.clientY-r.top)/state.zoom};
+    }
+
+    function setPolygonMode(en) {
+      state.polygonMode = en;
+      if (en) { setDrawMode(false); setEditMode(false, false); }
+      els.drawPolygonSbBtn.classList.toggle('active-draw', en);
+      els.boxLayer.style.cursor = en ? 'crosshair' : 'default';
+      showToast(en ? 'Polygon mode — click to add points, Enter to finish' : 'Polygon mode off');
+      if (!en && state.isDrawingPolygon) cancelPolygon();
+    }
+
+    function finishPolygon() {
+      if (!state.isDrawingPolygon) return;
+      state.isDrawingPolygon = false;
+      if (state.currentPolygon.length > 2) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        state.currentPolygon.forEach(p => { if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x; if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y; });
+        const box = { type: 'polygon', points: [...state.currentPolygon], x: minX, y: minY, width: maxX - minX, height: maxY - minY, label: cleanLabel(state.currentLabel) };
+        
+        promptForLabel(box, (finalBox) => {
+          setCurrentLabel(finalBox.label);
+          if (state.draftPolygonLayer) { state.draftPolygonLayer.remove(); state.draftPolygonLayer = null; }
+          state.boxes[currentKey()] = state.boxes[currentKey()] || [];
+          state.boxes[currentKey()].push(finalBox);
+          state.selectedBox = state.boxes[currentKey()].length - 1;
+          pushUndo({type: 'add', imageKey: currentKey()});
+          updateImageCount(); renderBoxes();
+        }, () => {
+          if (state.draftPolygonLayer) { state.draftPolygonLayer.remove(); state.draftPolygonLayer = null; }
+          renderBoxes();
+        });
+      } else { 
+        if (state.draftPolygonLayer) { state.draftPolygonLayer.remove(); state.draftPolygonLayer = null; }
+        showToast('Polygon needs at least 3 points'); 
+      }
+      state.currentPolygon = [];
+    }
+    
+    function cancelPolygon() {
+      state.isDrawingPolygon = false;
+      if (state.draftPolygonLayer) { state.draftPolygonLayer.remove(); state.draftPolygonLayer = null; }
+      state.currentPolygon = [];
+      showToast('Polygon cancelled');
+    }
+
+    async function pickDirectory() {
+      if (window.showDirectoryPicker) return await window.showDirectoryPicker();
+      throw new Error('Directory picker not supported');
+    }
+
+    function makeDraftBox(x,y) {
+      const b=document.createElement('div');
+      b.style.cssText=`position:absolute; border:1.5px dashed var(--accent); background:rgba(99,179,237,0.08); pointer-events:none; left:${x}px; top:${y}px; width:0; height:0;`;
+      els.boxLayer.appendChild(b); return b;
+    }
+
+    function deleteSelectedBox() {
+      if (!state.images.length) return showToast('Open an image first');
+      if (state.selectedBox===null) return showToast('Select a box first');
+      const key=currentKey(), boxes=state.boxes[key]||[];
+      if (state.selectedBox<0||state.selectedBox>=boxes.length) { state.selectedBox=null; renderBoxes(); return; }
+      const del=boxes[state.selectedBox], di=state.selectedBox;
+      boxes.splice(state.selectedBox,1);
+      pushUndo({type:'delete',imageKey:key,box:del,index:di});
+      state.selectedBox=null;
+      const vis=state.boxVisibility[key]||{};
+      delete vis[di]; const nv={};
+      for (const [k,v] of Object.entries(vis)) { const ii=parseInt(k); nv[ii>di?ii-1:ii]=v; }
+      state.boxVisibility[key]=nv;
+      updateImageCount();
+      renderBoxes(); showToast(`Box ${di+1} deleted`);
+    }
+
+    // Event handlers
+    els.classesClearBtn.addEventListener('click',()=>{ state.boxVisibility[currentKey()]={}; const boxes=state.boxes[currentKey()]||[]; boxes.forEach((_,i)=>state.boxVisibility[currentKey()][i]=true); renderBoxes(); showToast('All boxes shown'); });
+    els.imageFolderBtn.addEventListener('click',()=>{ setDebug('Opening image folder…'); els.imageDirInput.click(); });
+    els.xmlFolderBtn.addEventListener('click',async()=>{
+      if (window.showDirectoryPicker||window.chooseFileSystemEntries) {
+        try { 
+          state.xmlFolderHandle=await pickDirectory(); 
+          state.xmlFolderPath=state.xmlFolderHandle?.name||''; 
+          showToast(`XML folder: ${state.xmlFolderPath||'root'}`); 
+          const xmlFiles = [];
+          for await (const entry of state.xmlFolderHandle.values()) {
+            if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.xml')) xmlFiles.push(await entry.getFile());
+          }
+          if (xmlFiles.length) await loadXmlAnnotations(xmlFiles);
+        }
+        catch(e) { if (e.name!=='AbortError') showToast('Unable to select XML folder'); }
+      } else { showToast('Browser does not support direct folder saving'); els.xmlDirInput.click(); }
+    });
+
+    async function checkServerBackup() {
+      const restoreBtn = document.getElementById('restoreDataBtn');
+      restoreBtn.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Loading backup info...`;
+      restoreBtn.style.cursor = 'wait';
+      restoreBtn.style.opacity = '0.8';
+      restoreBtn.onclick = null;
+
+      try {
+        const response = await fetch('/get_latest_annotation');
+        if (!response.ok) throw new Error('Failed to fetch backup info');
+        const data = await response.json();
+        if (data.status === 'success' && Array.isArray(data.annotations) && data.annotations.length) {
+          const date = new Date(data.timestamp * 1000);
+          const indianTime = date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'short', timeStyle: 'short' });
+          restoreBtn.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:4px; width:100%;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-clock-rotate-left"></i> <span style="font-weight:500;">Restore All Previous Data</span>
+              </div>
+              <span style="font-size:10px; color:var(--text-muted); padding-left:22px; line-height:1.4;">
+                IST: ${indianTime}<br>Img Count: ${data.img_count}
+              </span>
+            </div>`;
+          restoreBtn.style.cursor = 'pointer';
+          restoreBtn.style.opacity = '1';
+          restoreBtn.onclick = async () => {
+            const files = data.annotations.map(a => new File([a.xml], a.file, { type: 'text/xml' }));
+            await loadXmlAnnotations(files);
+            els.viewMenu.style.display = 'none';
+          };
+        } else {
+          restoreBtn.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> No Backup Available`;
+          restoreBtn.style.cursor = 'not-allowed';
+          restoreBtn.style.opacity = '0.5';
+          restoreBtn.onclick = null;
+        }
+      } catch (err) {
+        console.error('Backup check failed:', err);
+        restoreBtn.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Backup unavailable`;
+        restoreBtn.style.cursor = 'not-allowed';
+        restoreBtn.style.opacity = '0.5';
+        restoreBtn.onclick = null;
+      }
+    }
+
+    els.viewMenuBtn.addEventListener('click',e=>{ e.stopPropagation(); els.viewMenu.style.display=els.viewMenu.style.display==='block'?'none':'block'; if(els.viewMenu.style.display==='block') checkServerBackup(); });
+    els.fileMenuBtn.addEventListener('click',e=>{ e.stopPropagation(); els.fileMenu.style.display=els.fileMenu.style.display==='block'?'none':'block'; });
+    els.editMenuBtn.addEventListener('click',e=>{ e.stopPropagation(); els.editMenu.style.display=els.editMenu.style.display==='block'?'none':'block'; });
+    document.addEventListener('click',e=>{ if (!els.viewMenu.contains(e.target)&&e.target!==els.viewMenuBtn) els.viewMenu.style.display='none'; if (!els.fileMenu.contains(e.target)&&e.target!==els.fileMenuBtn) els.fileMenu.style.display='none'; if (!els.editMenu.contains(e.target)&&e.target!==els.editMenuBtn) els.editMenu.style.display='none'; });
+    
+    els.drawPolygonBtn.addEventListener('click', () => { els.editMenu.style.display = 'none'; if (!state.images.length) return showToast('Open an image first'); setPolygonMode(!state.polygonMode); });
+
+    els.autoSaveCheckbox.addEventListener('change',()=>{ state.autoSave=els.autoSaveCheckbox.checked; if (state.autoSave) scheduleAutoSave(); showToast(state.autoSave?'Auto save on':'Auto save off'); });
+    els.showLabelsCheckbox.addEventListener('change',()=>{ state.showLabels=els.showLabelsCheckbox.checked; renderBoxes(); });
+    els.imageDirInput.addEventListener('change',async()=>{ await loadImages(els.imageDirInput.files); els.imageDirInput.value=''; });
+    els.xmlDirInput.addEventListener('change',async()=>{
+      if (els.xmlDirInput.files.length>0) { const fp=els.xmlDirInput.files[0].webkitRelativePath?.split('/').slice(0,-1).join('/')||''; state.xmlFolderPath=fp; }
+      await loadXmlAnnotations(els.xmlDirInput.files); els.xmlDirInput.value='';
+    });
+    els.defaultLabelCheckbox.addEventListener('change',()=>{ state.useDefaultLabel=els.defaultLabelCheckbox.checked; });
+    els.labelSelect.addEventListener('change',()=>{ setCurrentLabel(els.labelSelect.value); if (!state.useDefaultLabel) updateSelectedBoxLabel(state.currentLabel); });
+    els.labelInput.addEventListener('change',()=>{ setCurrentLabel(els.labelInput.value); if (!state.useDefaultLabel) updateSelectedBoxLabel(state.currentLabel); });
+    els.selectedBoxLabelSelect.addEventListener('change',()=>updateSelectedBoxLabel(els.selectedBoxLabelSelect.value));
+    els.formatSelect.addEventListener('change',()=>{ state.annotationFormat=els.formatSelect.value; });
+
+    els.workspace.addEventListener('dragover',e=>{ e.preventDefault(); els.workspace.style.outline='1px dashed var(--accent)'; });
+    els.workspace.addEventListener('dragleave',()=>{ els.workspace.style.outline='none'; });
+    els.workspace.addEventListener('drop',handleDrop);
+
+    els.createBoxBtn.addEventListener('click',()=>{ if (!state.images.length) return showToast('Open an image first'); setDrawMode(!state.drawMode); });
+    els.drawPolygonSbBtn.addEventListener('click', () => els.drawPolygonBtn.click());
+
+    els.boxLayer.addEventListener('mousedown',e=>{ 
+      if (!state.images.length) return;
+      if (state.drawMode) {
+        const pt=getLayerPoint(e); state.isDrawing=true; state.startX=pt.x; state.startY=pt.y; state.draftBox=makeDraftBox(pt.x,pt.y); 
+      } else if (state.polygonMode) {
+        const pt = getLayerPoint(e);
+        if (!state.isDrawingPolygon) {
+          state.isDrawingPolygon = true;
+          state.currentPolygon = [pt];
+          state.draftPolygonLayer = document.createElement('div');
+          state.draftPolygonLayer.style.cssText = 'position:absolute; inset:0; pointer-events:none; overflow:visible;';
+          state.draftPolygonLayer.innerHTML = `<svg width="100%" height="100%" style="overflow:visible;"><polyline fill="rgba(99,179,237,0.2)" stroke="var(--accent)" stroke-width="2" points="${pt.x},${pt.y}"/></svg>`;
+          els.boxLayer.appendChild(state.draftPolygonLayer);
+        } else {
+          const first = state.currentPolygon[0];
+          const dist = Math.hypot(pt.x - first.x, pt.y - first.y);
+          if (state.currentPolygon.length > 2 && dist < 12 / state.zoom) {
+             finishPolygon();
+          } else {
+             state.currentPolygon.push(pt);
+             const polyline = state.draftPolygonLayer.querySelector('polyline');
+             if (polyline) polyline.setAttribute('points', state.currentPolygon.map(p => `${p.x},${p.y}`).join(' '));
+          }
+        }
+      }
+    });
+
+    window.addEventListener('mousemove',e=>{
+      if (state.isDrawingPolygon && state.draftPolygonLayer) {
+        const pt = getLayerPoint(e);
+        const polyline = state.draftPolygonLayer.querySelector('polyline');
+        if (polyline) {
+          const pointsStr = state.currentPolygon.map(p => `${p.x},${p.y}`).join(' ');
+          polyline.setAttribute('points', `${pointsStr} ${pt.x},${pt.y}`);
+        }
+      }
+      if (state.editingResize&&state.editOriginalBox) {
+        const box=selectedBox(); if (!box) return;
+        const pt=getLayerPoint(e), dx=pt.x-state.editStartX, dy=pt.y-state.editStartY, h=state.editingResizeHandle;
+        if (h.startsWith('poly_')) {
+          const pi = parseInt(h.split('_')[1], 10);
+          box.points[pi].x = state.editOriginalBox.points[pi].x + dx;
+          box.points[pi].y = state.editOriginalBox.points[pi].y + dy;
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          box.points.forEach(p => { if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x; if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y; });
+          box.x = minX; box.y = minY; box.width = maxX - minX; box.height = maxY - minY;
+          renderBoxes(); return;
+        }
+        const minSz=8, mw=els.activeImage.naturalWidth, mh=els.activeImage.naturalHeight;
+        let nb={...state.editOriginalBox};
+        if (h.includes('n')) { const ny=state.editOriginalBox.y+dy, nh=state.editOriginalBox.height-dy; if (nh>=minSz&&ny>=0) { nb.y=ny; nb.height=nh; } }
+        if (h.includes('s')) { const nh=state.editOriginalBox.height+dy; if (nh>=minSz&&state.editOriginalBox.y+nh<=mh) nb.height=nh; }
+        if (h.includes('w')) { const nx=state.editOriginalBox.x+dx, nw=state.editOriginalBox.width-dx; if (nw>=minSz&&nx>=0) { nb.x=nx; nb.width=nw; } }
+        if (h.includes('e')) { const nw=state.editOriginalBox.width+dx; if (nw>=minSz&&state.editOriginalBox.x+nw<=mw) nb.width=nw; }
+        box.x=nb.x; box.y=nb.y; box.width=nb.width; box.height=nb.height; renderBoxes(); return;
+      }
+      if (state.isEditing&&state.editOriginalBox) {
+        const box=selectedBox(); if (!box) return;
+        const pt=getLayerPoint(e), dx=pt.x-state.editStartX, dy=pt.y-state.editStartY;
+        if (box.type === 'polygon') {
+          box.points = state.editOriginalBox.points.map(p => ({
+            x: p.x + dx, y: p.y + dy
+          }));
+          box.x = state.editOriginalBox.x + dx;
+          box.y = state.editOriginalBox.y + dy;
+          renderBoxes(); return;
+        }
+        const mx=els.activeImage.naturalWidth-state.editOriginalBox.width, my=els.activeImage.naturalHeight-state.editOriginalBox.height;
+        box.x=clamp(state.editOriginalBox.x+dx,0,mx); box.y=clamp(state.editOriginalBox.y+dy,0,my); renderBoxes(); return;
+      }
+      if (!state.isDrawing||!state.draftBox) return;
+      const pt=getLayerPoint(e);
+      const x=Math.min(pt.x,state.startX), y=Math.min(pt.y,state.startY), w=Math.abs(pt.x-state.startX), h=Math.abs(pt.y-state.startY);
+      Object.assign(state.draftBox.style,{left:`${x}px`,top:`${y}px`,width:`${w}px`,height:`${h}px`});
+    });
+
+    window.addEventListener('mouseup',e=>{
+      if (state.editingResize) { state.editingResize=false; state.editingResizeHandle=null; state.editOriginalBox=null; renderBoxes(); return; }
+      if (state.isEditing) { state.isEditing=false; state.editOriginalBox=null; renderBoxes(); return; }
+      if (!state.isDrawing) return;
+      const pt=getLayerPoint(e);
+      const box={x:Math.min(pt.x,state.startX),y:Math.min(pt.y,state.startY),width:Math.abs(pt.x-state.startX),height:Math.abs(pt.y-state.startY),label:cleanLabel(state.currentLabel)};
+      state.isDrawing=false; state.draftBox=null;
+      if (box.width>8&&box.height>8) {
+        promptForLabel(box, (finalBox) => {
+          setCurrentLabel(finalBox.label);
+          state.boxes[currentKey()]=state.boxes[currentKey()]||[];
+          state.boxes[currentKey()].push(finalBox);
+          state.selectedBox=state.boxes[currentKey()].length-1;
+          pushUndo({type:'add',imageKey:currentKey()});
+          updateImageCount();
+          renderBoxes();
+        }, () => {
+          renderBoxes();
+        });
+      } else {
+        renderBoxes();
+      }
+    });
+
+    function showNextImage() { if (!state.images.length) return showToast('Open images first'); state.currentIndex=(state.currentIndex+1)%state.images.length; state.selectedBox=null; state.autoFitImage=true; updateImageCount(); renderImage(); }
+    function showPreviousImage() { if (!state.images.length) return showToast('Open images first'); state.currentIndex=(state.currentIndex-1+state.images.length)%state.images.length; state.selectedBox=null; state.autoFitImage=true; updateImageCount(); renderImage(); }
+    function isTypingTarget(t) { return ['INPUT','SELECT','TEXTAREA'].includes(t.tagName)||t.isContentEditable; }
+
+    async function runAutoDetectOnAllImages() {
+      if (!state.images.length) {
+        showToast('No images to process.');
+        return;
+      }
+
+      const modelName = state.modelLoaded || 'Default AI Model';
+      showToast(`Starting auto-detection on ${state.images.length} images...`);
+
+      els.runAutoDetectAllBtn.disabled = true;
+      els.skipAutoDetectAllBtn.disabled = true;
+      els.autoDetectProgress.style.display = 'block';
+      els.autoDetectProgress.textContent = `Processing 0 / ${state.images.length}...`;
+
+      let processedCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < state.images.length; i++) {
+        const image = state.images[i];
+        
+        try {
+            const response = await fetch('/detect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    image_data: image.url, 
+                    model_name: modelName 
+                })
+            });
+
+            if (!response.ok) {
+                errorCount++;
+                console.error(`Detection API failed for ${image.name}`);
+                continue;
+            }
+            
+            const data = await response.json();
+            
+            if (data.detections && data.detections.length > 0) {
+                state.boxes[image.key] = state.boxes[image.key] || [];
+                
+                data.detections.forEach(det => {
+                    const newBox = { x: det.x, y: det.y, width: det.width, height: det.height, label: cleanLabel(addKnownLabel(det.label)) };
+                    state.boxes[image.key].push(newBox);
+                });
+            }
+        } catch (error) {
+            errorCount++;
+            console.error(`Auto-detect error for ${image.name}:`, error);
+        } finally {
+            processedCount++;
+            els.autoDetectProgress.textContent = `Processing ${processedCount} / ${state.images.length}...`;
+        }
+      }
+
+      els.autoDetectAllModal.style.display = 'none';
+      showToast(`Auto-detection complete. ${errorCount > 0 ? `${errorCount} errors.` : ''}`);
+      
+      updateImageCount();
+      renderBoxes();
+    }
+
+    async function autoDetectClasses() {
+      if (!state.images.length) return showToast('Open an image first');
+      
+      const modelName = state.modelLoaded || 'Default AI Model';
+      showToast(`Detecting classes with ${modelName}...`);
+      
+      try {
+        const currentImg = state.images[state.currentIndex];
+        
+        const response = await fetch('/detect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            image_data: currentImg.url, 
+            model_name: modelName 
+          })
+        });
+
+        if (!response.ok) throw new Error('Detection API failed');
+        
+        const data = await response.json();
+        
+        if (data.detections && data.detections.length > 0) {
+          state.boxes[currentKey()] = state.boxes[currentKey()] || [];
+          
+          data.detections.forEach(det => {
+            const newBox = { 
+              x: det.x, y: det.y, 
+              width: det.width, height: det.height, 
+              label: cleanLabel(addKnownLabel(det.label)) 
+            };
+            state.boxes[currentKey()].push(newBox);
+          });
+          
+          // Focus the last added box and commit to undo stack
+          state.selectedBox = state.boxes[currentKey()].length - 1;
+          pushUndo({type: 'add', imageKey: currentKey()});
+          
+          updateImageCount();
+          renderBoxes();
+          showToast(`Auto-detected ${data.detections.length} object(s)`);
+        } else {
+          showToast('No objects detected');
+        }
+      } catch (error) {
+        console.error('Auto-detect error:', error);
+        showToast('Error during auto-detection');
+      }
+    }
+
+    els.deleteBtn.addEventListener('click',deleteSelectedBox);
+    els.nextBtn.addEventListener('click',showNextImage);
+    els.prevBtn.addEventListener('click',showPreviousImage);
+    els.verifyBtn.addEventListener('click',markImageVerified);
+    els.saveBtn.addEventListener('click',async()=>{ if (state.annotationFormat==='pascal-voc') await savePascalVocAnnotations(); });
+
+    els.downloadAllBtn.addEventListener('click',async()=>{ await downloadAllAnnotations(); });
+    els.downloadVerifiedBtn.addEventListener('click',async()=>{ await downloadVerifiedAnnotations(); });
+    els.downloadAndVerifyBtn.addEventListener('click',async()=>{ await downloadAndVerifyXml(); updateImageVerifyUI(); });
+
+    function showZoomIndicator(e, text) {
+      els.zoomIndicator.textContent=text; els.zoomIndicator.style.left=(e.clientX+20)+'px'; els.zoomIndicator.style.top=(e.clientY-28)+'px';
+      els.zoomIndicator.style.display='block';
+      clearTimeout(window.zit); window.zit=setTimeout(()=>els.zoomIndicator.style.display='none',800);
+    }
+
+    els.zoomInBtn.addEventListener('click',e=>{ state.autoFitImage=false; state.zoom=Math.min(3.5,state.zoom+0.1); applyZoom(); showZoomIndicator(e,`${Math.round(state.zoom*100)}%`); });
+    els.zoomOutBtn.addEventListener('click',e=>{ state.autoFitImage=false; state.zoom=Math.max(0.3,state.zoom-0.1); applyZoom(); showZoomIndicator(e,`${Math.round(state.zoom*100)}%`); });
+    els.fitBtn.addEventListener('click',()=>{ if (!state.images.length||!els.activeImage.naturalWidth) return showToast('Open an image first'); state.autoFitImage=true; state.zoom=calculateFitZoom(); applyZoom(); showToast('Fit to viewport'); });
+
+    els.aiBtn.addEventListener('click', () => {
+      if (els.aiPopup.style.display === 'none') {
+        els.aiPopup.style.display = 'flex';
+        els.aiInput.focus();
+      } else {
+        els.aiPopup.style.display = 'none';
+      }
+    });
+
+    els.aiSendBtn.addEventListener('click', () => {
+      const prompt = els.aiInput.value.trim();
+      if (!prompt) return;
+      
+      if (!state.images.length) {
+        showToast('Open an image first for AI annotation');
+        return;
+      }
+
+      showToast(`AI is scanning for: "${prompt}"...`);
+      els.aiSendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+      els.aiSendBtn.disabled = true;
+
+      // Simulate a network/processing delay
+      setTimeout(() => {
+        els.aiSendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+        els.aiSendBtn.disabled = false;
+        els.aiInput.value = '';
+        els.aiPopup.style.display = 'none';
+
+        let aiLabel = 'AI_Object';
+        const lowerPrompt = prompt.toLowerCase();
+        if (lowerPrompt.includes('person')) aiLabel = 'Person';
+        else if (lowerPrompt.includes('car')) aiLabel = 'Car';
+        else if (lowerPrompt.includes('dog')) aiLabel = 'Dog';
+        else if (lowerPrompt.includes('cat')) aiLabel = 'Cat';
+
+        const w = els.activeImage.naturalWidth || 400, h = els.activeImage.naturalHeight || 300;
+        const boxW = w * 0.4, boxH = h * 0.6;
+        const boxX = (w - boxW) / 2 + (Math.random() * 40 - 20); // Add a slight random offset
+        const boxY = (h - boxH) / 2 + (Math.random() * 40 - 20);
+
+        const newBox = { x: boxX, y: boxY, width: boxW, height: boxH, label: cleanLabel(addKnownLabel(aiLabel)) };
+        state.boxes[currentKey()] = state.boxes[currentKey()] || [];
+        state.boxes[currentKey()].push(newBox);
+        state.selectedBox = state.boxes[currentKey()].length - 1;
+        pushUndo({type: 'add', imageKey: currentKey()});
+        
+        updateImageCount();
+        renderBoxes();
+        showToast(`AI generated bounding box for: ${aiLabel}`);
+      }, 1500);
+    });
+    
+    els.aiInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); els.aiSendBtn.click(); }
+      if (e.key === 'Escape') { e.preventDefault(); els.aiPopup.style.display = 'none'; }
+    });
+
+    els.helpBtn.addEventListener('click',()=>els.helpModal.classList.add('open'));
+    els.closeHelpBtn.addEventListener('click',()=>els.helpModal.classList.remove('open'));
+    els.helpModal.addEventListener('click',e=>{ if (e.target===els.helpModal) els.helpModal.classList.remove('open'); });
+    
+    els.modelBtn.addEventListener('click', () => { els.modelModal.style.display = 'flex'; });
+    els.closeModelModalBtn.addEventListener('click', () => { els.modelModal.style.display = 'none'; });
+    els.cancelModelBtn.addEventListener('click', () => { els.modelModal.style.display = 'none'; });
+    els.loadModelConfirmBtn.addEventListener('click', () => { 
+      const fileInput = document.getElementById('modelFileInput');
+      if (fileInput && fileInput.files.length > 0) state.modelLoaded = fileInput.files[0].name;
+      else state.modelLoaded = 'Default Model';
+      els.modelModal.style.display = 'none';
+      showToast('Model loaded successfully');
+    });
+    els.modelModal.addEventListener('click', e => { if (e.target === els.modelModal) els.modelModal.style.display = 'none'; });
+
+    els.closeAutoDetectAllModalBtn.addEventListener('click', () => { els.autoDetectAllModal.style.display = 'none'; });
+    els.skipAutoDetectAllBtn.addEventListener('click', () => { els.autoDetectAllModal.style.display = 'none'; });
+    els.runAutoDetectAllBtn.addEventListener('click', () => { runAutoDetectOnAllImages(); });
+
+    els.confirmLabelBtn.addEventListener('click', () => { if (pendingBoxCallback) pendingBoxCallback(els.newBoxLabelInput.value); });
+    els.cancelLabelBtn.addEventListener('click', () => { if (pendingBoxCancel) pendingBoxCancel(); });
+    els.closeLabelModalBtn.addEventListener('click', () => { if (pendingBoxCancel) pendingBoxCancel(); });
+    els.newBoxLabelInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); els.confirmLabelBtn.click(); }
+      else if (e.key === 'Escape') { e.preventDefault(); els.cancelLabelBtn.click(); }
+      e.stopPropagation();
+    });
+    els.labelModal.addEventListener('click', e => { if (e.target === els.labelModal && pendingBoxCancel) pendingBoxCancel(); });
+
+    els.imageStage.addEventListener('wheel', e => {
+      if (!state.images.length) return;
+      e.preventDefault();
+      state.autoFitImage = false;
+      
+      const oldZoom = state.zoom;
+      const newZoom = e.deltaY < 0 ? Math.min(20, state.zoom + 0.1) : Math.max(0.1, state.zoom - 0.1);
+      if (oldZoom === newZoom) return;
+      
+      // Measure cursor distance from the image's top-left corner before we resize it
+      const rectBefore = els.scrollWrapper.getBoundingClientRect();
+      const mouseX = e.clientX - rectBefore.left;
+      const mouseY = e.clientY - rectBefore.top;
+      
+      state.zoom = newZoom;
+      applyZoom();
+      
+      // Apply the zoom ratio to our tracked coordinates, then adjust the scrollbars natively
+      // so the new scaled coordinate aligns exactly with where the user's cursor still sits.
+      const ratio = newZoom / oldZoom;
+      const targetX = mouseX * ratio;
+      const targetY = mouseY * ratio;
+      
+      const rectAfter = els.scrollWrapper.getBoundingClientRect();
+      els.imageStage.scrollLeft += (rectAfter.left + targetX) - e.clientX;
+      els.imageStage.scrollTop += (rectAfter.top + targetY) - e.clientY;
+      
+      showZoomIndicator(e, `${Math.round(state.zoom * 100)}%`);
+    }, {passive: false});
+
+    window.addEventListener('resize',()=>{ if (!state.images.length||!els.activeImage.naturalWidth) return; if (state.autoFitImage) state.zoom=calculateFitZoom(); applyZoom(); });
+
+    window.addEventListener('keydown',e=>{
+      if (isTypingTarget(e.target)) return;
+      if ((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z') { e.preventDefault(); performUndo(); return; }
+      const k=e.key.toLowerCase();
+      if (k===' ') { e.preventDefault(); markImageVerified(); return; }
+      if (!['a','d','e','g','p','s','w','z','enter','escape'].includes(k)) return;
+      e.preventDefault();
+      if (k==='enter' && state.polygonMode && state.isDrawingPolygon) { finishPolygon(); return; }
+      if (k==='escape' && state.polygonMode && state.isDrawingPolygon) { cancelPolygon(); return; }
+      if (k==='d') showNextImage();
+      else if (k==='a') showPreviousImage();
+      else if (k==='g') autoDetectClasses();
+      else if (k==='p') els.drawPolygonBtn.click();
+      else if (k==='s') { if (!state.images.length) return showToast('Open an image first'); setDrawMode(!state.drawMode); }
+      else if (k==='w') { if (!state.images.length) return showToast('Open an image first'); setEditMode(!state.editMode); }
+      else if (k==='e') { if (!state.images.length) return showToast('Open an image first'); if (state.selectedBox===null) showToast('Select a box first'); else { els.selectedBoxLabelSelect.focus(); showToast('Edit label'); } }
+      else if (k==='z') deleteSelectedBox();
+    });
+  </script>
+</body>
+</html>
