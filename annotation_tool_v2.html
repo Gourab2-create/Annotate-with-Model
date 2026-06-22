@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Annotate — Modern Annotation Tool</title>
+  <title>Annotate with Model — Modern Annotation Tool</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,7 +12,7 @@
 
     :root {
       --bg-base: #0f1015;    
-      --bg-surface: rgba(91, 71, 110, 0.65);
+      --bg-surface: rgba(46, 31, 59, 0.65);
       --bg-elevated: rgba(30, 32, 44, 0.9);
       --bg-hover: rgba(243, 242, 242, 0.06);
       --bg-active: rgba(255, 255, 255, 0.1);
@@ -366,6 +366,7 @@
       transition: background 0.12s;
     }
     .class-item:hover { background: var(--bg-hover); }
+    .class-item.selected { background: var(--accent-dim); outline: 1px solid var(--border-accent); }
     .class-item input[type="checkbox"] { width: 12px; height: 12px; accent-color: var(--accent); cursor: pointer; }
     .class-item .box-dot { width: 7px; height: 7px; }
     .class-name { flex: 1; font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -454,13 +455,13 @@
     <div class="hdr-center">
       <div class="hdr-logo-dot"></div>
       <div>
-        <span style="color:var(--accent); font-weight:400">Anno</span><span style="color:var(--text-primary); font-weight:700">with Model</span>
-      </div>
+        <span style="color:var(--accent); font-weight:400">Annotate</span><span style="color: white; font-weight:400"> w..Model</span> 
+      </div>   
     </div>
     <div class="hdr-right">
       <span id="imageCountBadge" class="badge">0 / 0</span>
       <span class= "version-tag">Made By Gourab Bapli </span>
-      <span class="version-tag">v0.1.0</span>
+      <span class="version-tag">v0.1.1</span>
     </div>
   </header>
 
@@ -507,6 +508,13 @@
         <i class="fa-solid fa-draw-polygon"></i>
         <span>Polygon</span>
       </button>
+      
+      <!-- NEW: Edit Button -->
+      <button id="editSbBtn" class="sb-btn" title="Edit / Move (W)">
+        <i class="fa-solid fa-arrows-up-down-left-right"></i>
+        <span>Edit</span>
+      </button>
+
       <button id="deleteBtn" class="sb-btn danger" title="Delete selected box (Z)">
         <i class="fa-solid fa-trash-can"></i>
         <span>Delete</span>
@@ -591,6 +599,14 @@
             <span class="field-label">Custom</span>
             <input id="labelInput" class="field-ctrl" type="text" value="Fight" placeholder="Enter label…">
           </div>
+          <div class="field-row">
+            <span class="field-label">Box color</span>
+            <input id="boxColorInput" class="field-ctrl" type="color" value="#10b981" title="Change color for the current label">
+          </div>
+          <div class="field-row" style="margin-bottom:4px">
+            <span class="field-label">Box thickness</span>
+            <input id="boxThicknessInput" class="field-ctrl" type="number" min="1" max="8" step="1" value="2" title="Bounding box border thickness, max 8">
+          </div>
         </div>
       </div>
 
@@ -670,6 +686,7 @@
           <div class="shortcut-row"><span>Draw bounding box</span><span class="key">S</span></div>
           <div class="shortcut-row"><span>Draw polygon</span><span class="key">P</span></div>
           <div class="shortcut-row"><span>Edit/move and resize bounding box</span><span class="key">W</span></div>
+          <div class="shortcut-row"><span>Duplicate selected box</span><span class="key">Ctrl D</span></div> <!-- NEW -->
           <div class="shortcut-row"><span>Auto-detect objects (AI)</span><span class="key">G</span></div>
           <div class="shortcut-row"><span>Edit selected box label</span><span class="key">E</span></div>
           <div class="shortcut-row"><span>Delete bounding box</span><span class="key">Z</span></div>
@@ -709,6 +726,26 @@
     </div>
   </div>
 
+  <!-- AUTO-DETECT ALL MODAL -->
+  <div id="autoDetectAllModal" style="display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.65); align-items: center; justify-content: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+    <div class="modal-box" style="width: 400px;">
+      <div class="modal-header">
+        <h2>Run AI on All Images?</h2>
+        <button id="closeAutoDetectAllModalBtn" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+          You've loaded <span id="autoDetectImageCount"></span> images. Would you like to run the AI model to auto-detect objects on all of them?
+        </p>
+        <p id="autoDetectProgress" style="display: none; color: var(--text-secondary); font-size: 12px; margin-bottom: 16px;"></p>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
+          <button id="skipAutoDetectAllBtn" style="padding:6px 12px; background:var(--bg-hover); color:var(--text-primary); border:none; border-radius:4px; cursor:pointer; font-family:var(--font-ui);">Skip</button>
+          <button id="runAutoDetectAllBtn" style="padding:6px 12px; background:var(--accent); color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-family:var(--font-ui);">Run on All</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const state = {
       images: [], currentIndex: 0, boxes: {}, boxVisibility: {},
@@ -720,11 +757,12 @@
       editOriginalBox: null, zoom: 1, autoFitImage: true, draftBox: null,
       annotationsByName: {}, verifiedByName: {},
       labels: ['Fight'], currentLabel: 'Fight',
+      activeClassFilters: [],
       useDefaultLabel: false, annotationFormat: 'pascal-voc',
       autoSave: true, autoSaveCache: {}, showLabels: true,
       xmlFolderHandle: null, xmlFolderPath: null,
       undoStack: [], maxUndoStack: 20, labelColors: {},
-      modelLoaded: null
+      boxStrokeWidth: 2, modelLoaded: null
     };
 
     try {
@@ -734,6 +772,10 @@
       }
       const savedAutoSave = JSON.parse(localStorage.getItem('modern_annotation_auto_save'));
       if (savedAutoSave) state.autoSaveCache = savedAutoSave;
+      const savedColors = JSON.parse(localStorage.getItem('modern_annotation_label_colors'));
+      if (savedColors && typeof savedColors === 'object') state.labelColors = savedColors;
+      const savedStrokeWidth = Number(localStorage.getItem('modern_annotation_box_stroke_width'));
+      if (!Number.isNaN(savedStrokeWidth)) state.boxStrokeWidth = clamp(savedStrokeWidth, 1, 8);
     } catch(e) {}
 
     const els = {
@@ -762,6 +804,7 @@
       verifyBtn: document.getElementById('verifyBtn'),
       createBoxBtn: document.getElementById('createBoxBtn'),
       drawPolygonSbBtn: document.getElementById('drawPolygonSbBtn'),
+      editSbBtn: document.getElementById('editSbBtn'), // NEW Edit button
       deleteBtn: document.getElementById('deleteBtn'),
       zoomInBtn: document.getElementById('zoomInBtn'),
       zoomOutBtn: document.getElementById('zoomOutBtn'),
@@ -774,6 +817,8 @@
       defaultLabelCheckbox: document.getElementById('defaultLabelCheckbox'),
       labelSelect: document.getElementById('labelSelect'),
       labelInput: document.getElementById('labelInput'),
+      boxColorInput: document.getElementById('boxColorInput'),
+      boxThicknessInput: document.getElementById('boxThicknessInput'),
       selectedBoxLabelSelect: document.getElementById('selectedBoxLabelSelect'),
       boxListContainer: document.getElementById('boxListContainer'),
       classesContainer: document.getElementById('classesContainer'),
@@ -797,6 +842,12 @@
       cancelModelBtn: document.getElementById('cancelModelBtn'),
       loadModelConfirmBtn: document.getElementById('loadModelConfirmBtn'),
       labelModal: document.getElementById('labelModal'),
+      autoDetectAllModal: document.getElementById('autoDetectAllModal'),
+      closeAutoDetectAllModalBtn: document.getElementById('closeAutoDetectAllModalBtn'),
+      autoDetectImageCount: document.getElementById('autoDetectImageCount'),
+      autoDetectProgress: document.getElementById('autoDetectProgress'),
+      skipAutoDetectAllBtn: document.getElementById('skipAutoDetectAllBtn'),
+      runAutoDetectAllBtn: document.getElementById('runAutoDetectAllBtn'),
       newBoxLabelInput: document.getElementById('newBoxLabelInput'),
       labelDataList: document.getElementById('labelDataList'),
       cancelLabelBtn: document.getElementById('cancelLabelBtn'),
@@ -866,6 +917,33 @@
       const hash = Array.from(new TextEncoder().encode(key.toLowerCase())).reduce((a,b) => (a*31+b)>>>0, 0);
       state.labelColors[key] = palette[hash % palette.length];
       return state.labelColors[key];
+    }
+
+    function normalizeHexColor(value, fallback = '#10b981') {
+      return /^#[0-9a-f]{6}$/i.test(value || '') ? value : fallback;
+    }
+
+    function persistLabelColors() {
+      try { localStorage.setItem('modern_annotation_label_colors', JSON.stringify(state.labelColors)); } catch(e) {}
+    }
+
+    function updateStyleControls() {
+      if (els.boxColorInput) els.boxColorInput.value = normalizeHexColor(getLabelColor(state.currentLabel));
+      if (els.boxThicknessInput) els.boxThicknessInput.value = state.boxStrokeWidth;
+    }
+
+    function setCurrentLabelColor(value) {
+      const label = cleanLabel(state.currentLabel);
+      state.labelColors[label] = normalizeHexColor(value, getLabelColor(label));
+      persistLabelColors();
+      renderBoxes();
+    }
+
+    function setBoxStrokeWidth(value) {
+      state.boxStrokeWidth = clamp(Math.round(Number(value) || 2), 1, 8);
+      if (els.boxThicknessInput) els.boxThicknessInput.value = state.boxStrokeWidth;
+      try { localStorage.setItem('modern_annotation_box_stroke_width', String(state.boxStrokeWidth)); } catch(e) {}
+      renderBoxes();
     }
 
     function fileBaseName(n) { return n.split('/').pop().replace(/\.[^/.]+$/,'').toLowerCase(); }
@@ -992,6 +1070,7 @@
       els.labelInput.value=state.currentLabel;
       els.labelSelect.value=state.currentLabel;
       els.selectedBoxLabelSelect.value=state.currentLabel;
+      updateStyleControls();
     }
 
     function selectedBox() {
@@ -1012,10 +1091,10 @@
       });
       els.labelSelect.value=state.currentLabel;
       els.selectedBoxLabelSelect.value=selectedBox()?.label||state.currentLabel;
+      updateStyleControls();
     }
 
     function applyZoom() {
-      // Determine dimensions taking the current zoom into account
       const iw = (els.activeImage.naturalWidth || 1) * state.zoom;
       const ih = (els.activeImage.naturalHeight || 1) * state.zoom;
       
@@ -1095,6 +1174,14 @@
         applyImportedBoxes();
         try { const lk=localStorage.getItem('modern_annotation_last_image'); if (lk) { const fi=state.images.findIndex(i=>i.key===lk); if (fi!==-1) state.currentIndex=fi; } } catch(e) {}
         renderImage(); showToast(`${state.images.length} image(s) loaded`);
+        if (state.images.length > 0) {
+          els.autoDetectImageCount.textContent = state.images.length;
+          els.autoDetectProgress.style.display = 'none';
+          els.runAutoDetectAllBtn.disabled = false;
+          els.runAutoDetectAllBtn.innerHTML = 'Run on All';
+          els.skipAutoDetectAllBtn.disabled = false;
+          els.autoDetectAllModal.style.display = 'flex';
+        }
       } else { setDebug('No image files found.'); showToast('No image files found'); updateImageCount(); }
     }
 
@@ -1273,7 +1360,7 @@
       const boxes=state.boxes[currentKey()]||[], vis=state.boxVisibility[currentKey()]||{};
       boxes.forEach((box,index) => {
         if (vis[index]===false) return;
-        const label=box.label||'object', color=getLabelColor(label), sel=state.selectedBox===index;
+        const label=box.label||'object', color=getLabelColor(label), sel=state.selectedBox===index, strokeWidth=state.boxStrokeWidth;
         
         if (box.type === 'polygon') {
           const polyEl=document.createElement('div');
@@ -1283,8 +1370,9 @@
           const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
           polygon.setAttribute('points', box.points.map(p => `${p.x},${p.y}`).join(' '));
           polygon.setAttribute('fill', `${color}18`);
-          polygon.setAttribute('stroke', sel ? '#f6ad55' : color);
-          polygon.setAttribute('stroke-width', sel ? '2' : '2');
+          polygon.setAttribute('stroke', color);
+          polygon.setAttribute('stroke-width', strokeWidth);
+          if (sel) polygon.style.filter = 'drop-shadow(0 0 3px #f6ad55)';
           polygon.style.pointerEvents = 'auto';
           svg.appendChild(polygon);
           polyEl.appendChild(svg);
@@ -1322,8 +1410,8 @@
 
         const boxEl=document.createElement('button');
         boxEl.type='button';
-        boxEl.style.cssText=`position:absolute; border:2px solid ${sel?'#f6ad55':color}; background:${color}18; left:${box.x}px; top:${box.y}px; width:${box.width}px; height:${box.height}px; cursor:default; padding:0;`;
-        if (sel) boxEl.style.boxShadow=`0 0 0 1px ${color}44`;
+        boxEl.style.cssText=`position:absolute; border:${strokeWidth}px solid ${color}; background:${color}18; left:${box.x}px; top:${box.y}px; width:${box.width}px; height:${box.height}px; cursor:default; padding:0;`;
+        if (sel) boxEl.style.boxShadow=`0 0 0 1px #f6ad55, 0 0 8px ${color}66`;
         const lbl=document.createElement('span');
         lbl.style.cssText=`position:absolute; top:-22px; left:-1px; background:${color}; color:#fff; font-size:10px; font-weight:600; padding:2px 6px; border-radius:3px; white-space:nowrap; font-family:'DM Sans',sans-serif; letter-spacing:0.02em;`;
         lbl.textContent=label;
@@ -1394,8 +1482,14 @@
       // All row
       const allItem=document.createElement('label'); allItem.className='class-item';
       const allCb=document.createElement('input'); allCb.type='checkbox'; allCb.className=''; allCb.style.cssText='width:12px;height:12px;accent-color:var(--accent);cursor:pointer;';
-      allCb.checked=boxes.every((_,i)=>vis[i]!==false);
-      allCb.addEventListener('change',()=>{ state.boxVisibility[currentKey()]={}; boxes.forEach((_,i)=>state.boxVisibility[currentKey()][i]=allCb.checked); renderBoxes(); });
+      allCb.checked=!state.activeClassFilters.length && boxes.every((_,i)=>vis[i]!==false);
+      allCb.addEventListener('change',()=>{
+        state.activeClassFilters = [];
+        state.boxVisibility[currentKey()]={};
+        boxes.forEach((_,i)=>state.boxVisibility[currentKey()][i]=allCb.checked);
+        state.selectedBox = allCb.checked ? state.selectedBox : null;
+        renderBoxes();
+      });
       const allLbl=document.createElement('span'); allLbl.className='class-name'; allLbl.style.fontWeight='500'; allLbl.style.color='var(--text-primary)'; allLbl.textContent='All';
       const allCnt=document.createElement('span'); allCnt.className='class-count'; allCnt.textContent=boxes.length;
       allItem.appendChild(allCb); allItem.appendChild(allLbl); allItem.appendChild(allCnt);
@@ -1404,13 +1498,28 @@
       boxes.forEach((b,i)=>{ const l=b.label||'object'; if (!cm[l]) cm[l]={count:0,vc:0,idx:[]}; cm[l].count++; cm[l].idx.push(i); if (vis[i]!==false) cm[l].vc++; });
       Object.entries(cm).forEach(([label,data])=>{
         const ci=document.createElement('label'); ci.className='class-item';
+        if (isClassFilterActive(label)) ci.classList.add('selected');
         const cb=document.createElement('input'); cb.type='checkbox'; cb.style.cssText='width:12px;height:12px;accent-color:var(--accent);cursor:pointer;';
-        cb.checked=data.vc>0; cb.indeterminate=data.vc>0&&data.vc<data.count;
-        cb.addEventListener('change',()=>{ state.boxVisibility[currentKey()]=state.boxVisibility[currentKey()]||{}; data.idx.forEach(i=>state.boxVisibility[currentKey()][i]=cb.checked); renderBoxes(); });
+        cb.checked=state.activeClassFilters.length ? isClassFilterActive(label) : data.vc>0;
+        cb.indeterminate=!state.activeClassFilters.length && data.vc>0&&data.vc<data.count;
+        cb.addEventListener('change',()=>{
+          setCurrentLabel(label);
+          setClassFilter(label, cb.checked);
+          applyClassFiltersToCurrentImage();
+          renderBoxes();
+        });
         const dot=document.createElement('span'); dot.className='box-dot'; dot.style.background=getLabelColor(label);
         const lbl=document.createElement('span'); lbl.className='class-name'; lbl.textContent=label; lbl.title=label;
         const cnt=document.createElement('span'); cnt.className='class-count'; cnt.textContent=data.count;
         ci.appendChild(cb); ci.appendChild(dot); ci.appendChild(lbl); ci.appendChild(cnt);
+        ci.addEventListener('click', e => {
+          if (e.target === cb) return;
+          e.preventDefault();
+          setCurrentLabel(label);
+          setClassFilter(label, !isClassFilterActive(label));
+          applyClassFiltersToCurrentImage();
+          renderBoxes();
+        });
         els.classesContainer.appendChild(ci);
       });
     }
@@ -1426,7 +1535,10 @@
       state.editMode=en; state.isEditing=false; state.editOriginalBox=null;
       if (en&&state.drawMode) setDrawMode(false);
       if (en&&state.polygonMode) setPolygonMode(false);
+      
       els.boxLayer.style.cursor=en?'move':'default';
+      els.editSbBtn.classList.toggle('active-draw', en);
+      
       if (notify) showToast(en?'Edit mode — drag to move':'Edit mode off');
       renderBoxes();
     }
@@ -1507,8 +1619,36 @@
       renderBoxes(); showToast(`Box ${di+1} deleted`);
     }
 
+    function duplicateSelectedBox() {
+      if (!state.images.length) return showToast('Open an image first');
+      if (state.selectedBox === null) return showToast('Select a box to duplicate');
+      
+      const key = currentKey();
+      const boxes = state.boxes[key] || [];
+      if (state.selectedBox < 0 || state.selectedBox >= boxes.length) return;
+
+      const original = boxes[state.selectedBox];
+      const duplicate = JSON.parse(JSON.stringify(original));
+      
+      const offset = 15; 
+      duplicate.x += offset;
+      duplicate.y += offset;
+      
+      if (duplicate.type === 'polygon' && duplicate.points) {
+        duplicate.points.forEach(p => { p.x += offset; p.y += offset; });
+      }
+
+      boxes.push(duplicate);
+      state.selectedBox = boxes.length - 1; 
+      
+      pushUndo({type: 'add', imageKey: key});
+      updateImageCount();
+      renderBoxes();
+      showToast('Box duplicated');
+    }
+
     // Event handlers
-    els.classesClearBtn.addEventListener('click',()=>{ state.boxVisibility[currentKey()]={}; const boxes=state.boxes[currentKey()]||[]; boxes.forEach((_,i)=>state.boxVisibility[currentKey()][i]=true); renderBoxes(); showToast('All boxes shown'); });
+    els.classesClearBtn.addEventListener('click',()=>{ state.activeClassFilters=[]; state.boxVisibility[currentKey()]={}; const boxes=state.boxes[currentKey()]||[]; boxes.forEach((_,i)=>state.boxVisibility[currentKey()][i]=true); renderBoxes(); showToast('All boxes shown'); });
     els.imageFolderBtn.addEventListener('click',()=>{ setDebug('Opening image folder…'); els.imageDirInput.click(); });
     els.xmlFolderBtn.addEventListener('click',async()=>{
       if (window.showDirectoryPicker||window.chooseFileSystemEntries) {
@@ -1588,6 +1728,9 @@
     els.defaultLabelCheckbox.addEventListener('change',()=>{ state.useDefaultLabel=els.defaultLabelCheckbox.checked; });
     els.labelSelect.addEventListener('change',()=>{ setCurrentLabel(els.labelSelect.value); if (!state.useDefaultLabel) updateSelectedBoxLabel(state.currentLabel); });
     els.labelInput.addEventListener('change',()=>{ setCurrentLabel(els.labelInput.value); if (!state.useDefaultLabel) updateSelectedBoxLabel(state.currentLabel); });
+    els.boxColorInput.addEventListener('input',()=>setCurrentLabelColor(els.boxColorInput.value));
+    els.boxThicknessInput.addEventListener('input',()=>setBoxStrokeWidth(els.boxThicknessInput.value));
+    els.boxThicknessInput.addEventListener('change',()=>setBoxStrokeWidth(els.boxThicknessInput.value));
     els.selectedBoxLabelSelect.addEventListener('change',()=>updateSelectedBoxLabel(els.selectedBoxLabelSelect.value));
     els.formatSelect.addEventListener('change',()=>{ state.annotationFormat=els.formatSelect.value; });
 
@@ -1597,6 +1740,11 @@
 
     els.createBoxBtn.addEventListener('click',()=>{ if (!state.images.length) return showToast('Open an image first'); setDrawMode(!state.drawMode); });
     els.drawPolygonSbBtn.addEventListener('click', () => els.drawPolygonBtn.click());
+    
+    els.editSbBtn.addEventListener('click', () => { 
+      if (!state.images.length) return showToast('Open an image first'); 
+      setEditMode(!state.editMode); 
+    });
 
     els.boxLayer.addEventListener('mousedown',e=>{ 
       if (!state.images.length) return;
@@ -1698,9 +1846,113 @@
       }
     });
 
-    function showNextImage() { if (!state.images.length) return showToast('Open images first'); state.currentIndex=(state.currentIndex+1)%state.images.length; state.selectedBox=null; state.autoFitImage=true; updateImageCount(); renderImage(); }
-    function showPreviousImage() { if (!state.images.length) return showToast('Open images first'); state.currentIndex=(state.currentIndex-1+state.images.length)%state.images.length; state.selectedBox=null; state.autoFitImage=true; updateImageCount(); renderImage(); }
+    function normalizedLabel(label) {
+      return cleanLabel(label).toLowerCase();
+    }
+
+    function isClassFilterActive(label) {
+      const target = normalizedLabel(label);
+      return state.activeClassFilters.some(activeLabel => normalizedLabel(activeLabel) === target);
+    }
+
+    function setClassFilter(label, enabled) {
+      const target = normalizedLabel(label);
+      state.activeClassFilters = state.activeClassFilters.filter(activeLabel => normalizedLabel(activeLabel) !== target);
+      if (enabled) state.activeClassFilters.push(cleanLabel(label));
+    }
+
+    function applyClassFiltersToCurrentImage() {
+      const boxes = state.boxes[currentKey()] || [];
+      const activeLabels = new Set(state.activeClassFilters.map(normalizedLabel));
+      const visibility = {};
+      let firstMatch = null;
+
+      boxes.forEach((box, index) => {
+        const isVisible = !activeLabels.size || activeLabels.has(normalizedLabel(box.label));
+        visibility[index] = isVisible;
+        if (isVisible && firstMatch === null) firstMatch = index;
+      });
+
+      state.boxVisibility[currentKey()] = visibility;
+      if (state.selectedBox === null || visibility[state.selectedBox] === false) state.selectedBox = firstMatch;
+    }
+
+    function changeImage(direction) {
+      if (!state.images.length) return showToast('Open images first');
+      const activeLabel = selectedBox()?.label || state.currentLabel;
+      state.currentIndex = (state.currentIndex + direction + state.images.length) % state.images.length;
+      state.autoFitImage = true;
+      setCurrentLabel(activeLabel);
+      applyClassFiltersToCurrentImage();
+      updateImageCount();
+      renderImage();
+    }
+
+    function showNextImage() { changeImage(1); }
+    function showPreviousImage() { changeImage(-1); }
     function isTypingTarget(t) { return ['INPUT','SELECT','TEXTAREA'].includes(t.tagName)||t.isContentEditable; }
+
+    async function runAutoDetectOnAllImages() {
+      if (!state.images.length) {
+        showToast('No images to process.');
+        return;
+      }
+
+      const modelName = state.modelLoaded || 'Default AI Model';
+      showToast(`Starting auto-detection on ${state.images.length} images...`);
+
+      els.runAutoDetectAllBtn.disabled = true;
+      els.skipAutoDetectAllBtn.disabled = true;
+      els.autoDetectProgress.style.display = 'block';
+      els.autoDetectProgress.textContent = `Processing 0 / ${state.images.length}...`;
+
+      let processedCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < state.images.length; i++) {
+        const image = state.images[i];
+        
+        try {
+            const response = await fetch('/detect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    image_data: image.url, 
+                    model_name: modelName 
+                })
+            });
+
+            if (!response.ok) {
+                errorCount++;
+                console.error(`Detection API failed for ${image.name}`);
+                continue;
+            }
+            
+            const data = await response.json();
+            
+            if (data.detections && data.detections.length > 0) {
+                state.boxes[image.key] = state.boxes[image.key] || [];
+                
+                data.detections.forEach(det => {
+                    const newBox = { x: det.x, y: det.y, width: det.width, height: det.height, label: cleanLabel(addKnownLabel(det.label)) };
+                    state.boxes[image.key].push(newBox);
+                });
+            }
+        } catch (error) {
+            errorCount++;
+            console.error(`Auto-detect error for ${image.name}:`, error);
+        } finally {
+            processedCount++;
+            els.autoDetectProgress.textContent = `Processing ${processedCount} / ${state.images.length}...`;
+        }
+      }
+
+      els.autoDetectAllModal.style.display = 'none';
+      showToast(`Auto-detection complete. ${errorCount > 0 ? `${errorCount} errors.` : ''}`);
+      
+      updateImageCount();
+      renderBoxes();
+    }
 
     async function autoDetectClasses() {
       if (!state.images.length) return showToast('Open an image first');
@@ -1846,6 +2098,10 @@
     });
     els.modelModal.addEventListener('click', e => { if (e.target === els.modelModal) els.modelModal.style.display = 'none'; });
 
+    els.closeAutoDetectAllModalBtn.addEventListener('click', () => { els.autoDetectAllModal.style.display = 'none'; });
+    els.skipAutoDetectAllBtn.addEventListener('click', () => { els.autoDetectAllModal.style.display = 'none'; });
+    els.runAutoDetectAllBtn.addEventListener('click', () => { runAutoDetectOnAllImages(); });
+
     els.confirmLabelBtn.addEventListener('click', () => { if (pendingBoxCallback) pendingBoxCallback(els.newBoxLabelInput.value); });
     els.cancelLabelBtn.addEventListener('click', () => { if (pendingBoxCancel) pendingBoxCancel(); });
     els.closeLabelModalBtn.addEventListener('click', () => { if (pendingBoxCancel) pendingBoxCancel(); });
@@ -1890,7 +2146,10 @@
 
     window.addEventListener('keydown',e=>{
       if (isTypingTarget(e.target)) return;
+      
       if ((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z') { e.preventDefault(); performUndo(); return; }
+      if ((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d') { e.preventDefault(); duplicateSelectedBox(); return; }
+      
       const k=e.key.toLowerCase();
       if (k===' ') { e.preventDefault(); markImageVerified(); return; }
       if (!['a','d','e','g','p','s','w','z','enter','escape'].includes(k)) return;
@@ -1906,6 +2165,8 @@
       else if (k==='e') { if (!state.images.length) return showToast('Open an image first'); if (state.selectedBox===null) showToast('Select a box first'); else { els.selectedBoxLabelSelect.focus(); showToast('Edit label'); } }
       else if (k==='z') deleteSelectedBox();
     });
+
+    updateStyleControls();
   </script>
 </body>
 </html>
